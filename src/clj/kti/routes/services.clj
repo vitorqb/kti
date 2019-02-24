@@ -1,8 +1,21 @@
 (ns kti.routes.services
-  (:require [ring.util.http-response :refer :all]
+  (:require [kti.routes.services.captured-references :refer :all]
+            [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [java-time]))
 
+;;
+;; Schemas
+;; 
+(s/defschema CapturedReference {:id Integer
+                                :reference s/Str
+                                :created-at java.time.LocalDateTime
+                                :classified s/Bool})
+
+;;
+;; Routes
+;; 
 (def service-routes
   (api
     {:swagger {:ui "/swagger-ui"
@@ -13,6 +26,30 @@
     
     (context "/api" []
       :tags ["thingie"]
+
+      (POST "/captured-references" []
+        :return       CapturedReference
+        :body-params  [reference :- s/Str]
+        :summary      "Creates a captured reference"
+        (let [id (create-captured-reference! {:reference reference})
+              captured-ref (get-captured-reference id)]
+          (created
+           (str "/captured-references/" (:id captured-ref))
+           captured-ref)))
+
+      (GET "/captured-references" []
+        :return       [CapturedReference]
+        :query-params []
+        :summary      "Bring all captured references"
+        (ok (into [] (get-all-captured-references))))
+
+      (GET "/captured-references/:id" [id]
+        :return       CapturedReference
+        :query-params []
+        :summary      "Get for a captured reference."
+        (if-let [captured-reference (get-captured-reference id)]
+          (ok captured-reference)
+          (not-found)))
       
       (GET "/plus" []
         :return       Long

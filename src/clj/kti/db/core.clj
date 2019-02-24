@@ -2,6 +2,7 @@
   (:require
     [clojure.java.jdbc :as jdbc]
     [conman.core :as conman]
+    [java-time]
     [java-time.pre-java8 :as jt]
     [mount.core :refer [defstate]]
     [kti.config :refer [env]]))
@@ -36,7 +37,7 @@
     (jt/sql-date v))
   java.time.LocalDateTime
   (sql-value [v]
-    (jt/sql-timestamp v))
+    (java-time/format v))
   java.time.ZonedDateTime
   (sql-value [v]
     (jt/sql-timestamp v)))

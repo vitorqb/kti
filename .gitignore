@@ -13,3 +13,4 @@ profiles.clj
 .nrepl-port
 /log
 /kti_dev.db
+kti_test.db
