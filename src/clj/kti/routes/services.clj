@@ -13,6 +13,9 @@
                                 :created-at java.time.LocalDateTime
                                 :classified s/Bool})
 
+(defmethod ring.swagger.json-schema/convert-class
+  java.time.LocalDateTime [_ _] {:type "string" :format "date-time"})
+
 ;;
 ;; Routes
 ;; 
@@ -49,6 +52,16 @@
         :summary      "Get for a captured reference."
         (if-let [captured-reference (get-captured-reference id)]
           (ok captured-reference)
+          (not-found)))
+
+      (PUT "/captured-references/:id" [id]
+        :return       CapturedReference
+        :body-params  [reference :- s/Str]
+        :summary      "Put for a captured reference"
+        (if-let [captured-reference (get-captured-reference id)]
+          (do
+            (update-captured-reference! id {:reference reference})
+            (ok (get-captured-reference id)))
           (not-found)))
       
       (GET "/plus" []

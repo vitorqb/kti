@@ -6,8 +6,13 @@
             [muuntaja.core :as m]
             [mount.core :as mount]))
 
+(def url-inexistant-captured-reference "/api/captured-references/not-an-id")
+(def captured-reference-data {:reference "some ref"})
+
 (defn parse-json [body]
   (m/decode formats/instance "application/json" body))
+
+(defn not-found? [response] (= 404 (:status response)))
 
 (use-fixtures
   :once
@@ -23,9 +28,14 @@
 
   (testing "not-found route"
     (let [response (app (request :get "/invalid"))]
-      (is (= 404 (:status response)))))
+      (is (not-found? response))))
 
-  (testing "captured reference id not found"
-    (let [response (app (request :get "/api/captured-references/not-an-id"))]
-      (is (= 404 (:status response))))))
+  (testing "get captured reference id not found"
+    (let [response (app (request :get url-inexistant-captured-reference))]
+      (is (not-found? response))))
+
+  (testing "put captured reference id not found"
+    (let [response (app (-> (request :put url-inexistant-captured-reference)
+                            (json-body captured-reference-data)))]
+      (is (not-found? response)))))
 

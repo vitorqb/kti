@@ -27,6 +27,13 @@
   ([con]
    (map parse-retrieved-captured-reference (db/get-all-captured-references con {}))))  
 
+(defn update-captured-reference!
+  ([id params] (update-captured-reference! *db* id params))
+  ([con id {:keys [reference] :as args}]
+   (when (not (= args {}))
+     (db/update-captured-reference! con {:id id
+                                         :reference reference}))))
+
 (defn parse-retrieved-captured-reference
   [x]
   (into {} (map (fn [[k v]]

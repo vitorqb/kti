@@ -8,6 +8,7 @@
             [kti.handler :refer [app]]
             [cheshire.core :as cheshire]))
 
+;; !!!! TODO -> Major tests refactoring
 
 (def JSON_FORMAT "" "application/json; charset=utf-8")
 (def CONTENT_TYPE "" "Content-Type")
@@ -56,12 +57,20 @@
                              [:classified false]]]
           (is (-> body first key (= value))))))
 
-    (testing "Queries for the one he captured and sees it"
-      (let [response (-> "/api/captured-references/"
-                         (str @created-id)
-                         (->> (request :get))
-                         app)
-            body (-> response :body body->map)]
-        (is (= 200 (:status response)) body)
-        (is (= (:id body) @created-id))
-        (is (= (:reference body) link))))))
+    (let [captured-reference-url (str "/api/captured-references/" @created-id)]
+      (testing "Queries for the one he captured and sees it"
+        (let [response (app (request :get captured-reference-url))
+              body (-> response :body body->map)]
+          (is (= 200 (:status response)) body)
+          (is (= (:id body) @created-id))
+          (is (= (:reference body) link))))
+
+      (testing "He sees that the link is wrong and updates it"
+        (let [new-link "https://www.youtube.com/watch?v=aG2uddkKWYE"
+              response (app (-> (request :put captured-reference-url)
+                                (json-body {:reference new-link})))
+              {raw-body :body status :status} response
+              {:keys [id reference]} (body->map raw-body)]
+          (is (= status 200))
+          (is (= id @created-id))
+          (is (= new-link reference)))))))

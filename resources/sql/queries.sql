@@ -35,7 +35,11 @@ WHERE id = :id
 -- :doc deletes all captured references
 DELETE FROM captured_references
 
+-- :name update-captured-reference! :! :n
+UPDATE captured_references
+SET reference = :reference
+WHERE id = :id
+
 -- :name get-all-captured-references :? :*
 -- :doc retrieves all captured references
 SELECT id, reference, created_at, FALSE as classified FROM captured_references
-

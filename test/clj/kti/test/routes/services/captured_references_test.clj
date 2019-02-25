@@ -9,6 +9,8 @@
             [clojure.java.jdbc :as jdbc]
             [mount.core :as mount]))
 
+(def captured-reference-data {:reference "Some reference"
+                              :created-at (java-time/local-date-time 1993 11 23)})
 
 (use-fixtures
   :once
@@ -95,9 +97,25 @@
         (is (= (set (map :created-at all-captured-references))
                #{(utils/str->date datetime-str)}))))))
 
-
 (deftest test-get-captured-reference
   (jdbc/with-db-transaction [t-conn *db*]
     (jdbc/db-set-rollback-only! t-conn)
     (testing "When id does not exist"
       (is (= (get-captured-reference 921928129) nil)))))
+
+(deftest test-update-captured-reference!
+  (jdbc/with-db-transaction [t-conn *db*]
+    (jdbc/db-set-rollback-only! t-conn)
+    (testing "Empty map"
+      (let [id (create-captured-reference! t-conn captured-reference-data)
+            original-captured-reference (get-captured-reference t-conn id)]
+        (update-captured-reference! t-conn id {})
+        (is (= (get-captured-reference t-conn id) original-captured-reference))))
+    (testing "Updating reference"
+      (let [id (create-captured-reference! t-conn captured-reference-data)
+            original-captured-reference (get-captured-reference t-conn id)
+            new-reference "new reference!"]
+        (update-captured-reference! t-conn id {:reference new-reference})
+        (is (= (get-captured-reference t-conn id)
+               (assoc original-captured-reference :reference new-reference)))))))
+
