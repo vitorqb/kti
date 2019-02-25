@@ -39,6 +39,6 @@
   (into {} (map (fn [[k v]]
                   (case k
                     :classified [k (utils/int-to-bool v)]
-                    :created_at [:created-at (java-time/local-date-time v)]
+                    :created_at [:created-at (utils/str->date v)]
                     [k v]))
                 x)))

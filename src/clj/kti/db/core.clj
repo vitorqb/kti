@@ -1,11 +1,11 @@
 (ns kti.db.core
-  (:require
-    [clojure.java.jdbc :as jdbc]
-    [conman.core :as conman]
-    [java-time]
-    [java-time.pre-java8 :as jt]
-    [mount.core :refer [defstate]]
-    [kti.config :refer [env]]))
+  (:require [kti.utils :as utils]
+            [clojure.java.jdbc :as jdbc]
+            [conman.core :as conman]
+            [java-time]
+            [java-time.pre-java8 :as jt]
+            [mount.core :refer [defstate]]
+            [kti.config :refer [env]]))
 
 (defstate ^:dynamic *db*
           :start (conman/connect! {:jdbc-url (env :database-url)})
@@ -37,7 +37,7 @@
     (jt/sql-date v))
   java.time.LocalDateTime
   (sql-value [v]
-    (java-time/format v))
+    (utils/date->str v))
   java.time.ZonedDateTime
   (sql-value [v]
     (jt/sql-timestamp v)))

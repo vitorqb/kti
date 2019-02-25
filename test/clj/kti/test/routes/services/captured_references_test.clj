@@ -67,7 +67,7 @@
   (let [retrieved
         {:id 12
          :reference "reference"
-         :created_at (java-time/format
+         :created_at (utils/date->str
                       (java-time/local-date-time 2018 1 1 12 22 10))
          :classified 0}
         parsed (parse-retrieved-captured-reference retrieved)]
@@ -76,7 +76,7 @@
       (is (not (contains? parsed :created_at))))
     (testing "parses date"
       (is (= (:created-at parsed)
-             (java-time/local-date-time (:created_at retrieved)))))
+             (utils/str->date (:created_at retrieved)))))
     (testing "transforms classified into bool"
       (is (= (:classified parsed)
              false)))))

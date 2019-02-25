@@ -39,9 +39,8 @@
         (is (integer? (:id body)))
         (is (= (:reference body) link))
         (is (false? (:classified body)))
-        (is (< (java-time/time-between :seconds
-                                       (-> body :created-at utils/str->date)
-                                       (utils/now))
+        (is (< (utils/seconds-between (-> body :created-at utils/str->date)
+                                      (utils/now))
                3))
         ;; Stores the created id so others can use it
         (reset! created-id (:id body))))
