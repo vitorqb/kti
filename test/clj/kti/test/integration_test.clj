@@ -1,5 +1,6 @@
 (ns kti.test.integration-test
   (:require [clojure.test :refer :all]
+            [kti.test.helpers :refer [not-found? ok?]]
             [kti.db.core :as db]
             [java-time]
             [kti.utils :as utils]
@@ -9,10 +10,6 @@
             [cheshire.core :as cheshire]))
 
 ;; !!!! TODO -> Major tests refactoring
-
-(def JSON_FORMAT "" "application/json; charset=utf-8")
-(def CONTENT_TYPE "" "Content-Type")
-
 (defn body->map
   "Converts a response body into a map. Assumes it is json."
   [json-body]
@@ -35,7 +32,6 @@
                               (json-body {:reference link})))
             body (-> response :body body->map)]
         (is (= 201 (:status response)) (slurp (:body response)))
-        (is (= JSON_FORMAT (get-in response [:headers CONTENT_TYPE])))
         (is (integer? (:id body)))
         (is (= (:reference body) link))
         (is (false? (:classified body)))
@@ -48,8 +44,7 @@
     (testing "Gets all references and sees the one he captured there"
       (let [response (app (request :get "/api/captured-references"))
             body (-> response :body body->map)]
-        (is (= 200 (:status response)) (str response))
-        (is (= JSON_FORMAT (get-in response [:headers CONTENT_TYPE])))
+        (is (ok? response))
         (is (= (count body) 1))
         (doseq [[key value] [[:id         @created-id]
                              [:reference  link]
@@ -60,7 +55,7 @@
       (testing "Queries for the one he captured and sees it"
         (let [response (app (request :get captured-reference-url))
               body (-> response :body body->map)]
-          (is (= 200 (:status response)) body)
+          (is (ok? response))
           (is (= (:id body) @created-id))
           (is (= (:reference body) link))))
 
@@ -70,6 +65,6 @@
                                 (json-body {:reference new-link})))
               {raw-body :body status :status} response
               {:keys [id reference]} (body->map raw-body)]
-          (is (= status 200))
+          (is (ok? response))
           (is (= id @created-id))
           (is (= new-link reference)))))))

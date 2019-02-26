@@ -1,5 +1,5 @@
 (ns kti.utils
-  (require [java-time]))
+  (:require [java-time]))
 
 (defn int-to-bool
   [x]
