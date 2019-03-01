@@ -1,5 +1,6 @@
 (ns kti.test.routes.services.captured-references-test
   (:require [java-time]
+            [kti.test.helpers :refer :all]
             [kti.utils :as utils]
             [luminus-migrations.core :as migrations]
             [kti.routes.services.captured-references :refer :all]
@@ -9,59 +10,54 @@
             [clojure.java.jdbc :as jdbc]
             [mount.core :as mount]))
 
-(def captured-reference-data {:reference "Some reference"
-                              :created-at (java-time/local-date-time 1993 11 23)})
-
-(use-fixtures
-  :once
-  (fn [f]
-    (mount/start
-     #'kti.config/env
-     #'kti.db.core/*db*)
-    (migrations/migrate ["migrate"] (select-keys env [:database-url]))
-    (db/delete-all-captured-references *db*)
-    (f)))
+(use-fixtures :once fixture-start-env-and-db)
+(use-fixtures :each fixture-bind-db-to-rollback-transaction)
 
 (deftest test-creating-captured-references
   (testing "Creating and returning a new captured reference"
-    (jdbc/with-db-transaction [t-conn *db*]
-      (jdbc/db-set-rollback-only! t-conn)
-      (let [reference "some-ref"
-            id (create-captured-reference! t-conn {:reference reference})
-            retrieved-reference (get-captured-reference t-conn id)]
-        (is (integer? id))
-        (is (= (:id retrieved-reference) id))
-        (is (= (:reference retrieved-reference) reference))
-        (is (= (:classified retrieved-reference) false))
-        (is (-> (:created-at retrieved-reference)
-                (java-time/time-between (java-time/local-date-time) :seconds))
-            (< 3)))))
+    (db/delete-all-captured-references)
+    (let [data (get-captured-reference-data)
+          id (create-captured-reference! data)
+          retrieved-reference (get-captured-reference id)]
+      (is (integer? id))
+      (are [k v] (= (k retrieved-reference) v)
+        :id id
+        :reference (:reference data)
+        :classified false
+        :created-at (:created-at data))))
+
+  (testing "Uses utils/now when no created-at"
+    (let [date (java-time/local-date-time 2017 4 5 1 1)]
+      (with-redefs [utils/now (constantly date)]
+        (is (= (-> {:reference ""}
+                   create-captured-reference!
+                   get-captured-reference
+                   :created-at)
+               date)))))
 
   (testing "Creating with specific datetime"
-    (jdbc/with-db-transaction [t-conn *db*]
-      (jdbc/db-set-rollback-only! t-conn)
-      (let [reference "another ref"
-            datetime (java-time/local-date-time 2018 11 23 12 12)]
-        (is (= (create-captured-reference! t-conn {:reference reference
-                                                   :created-at datetime})
-               1))
-        (let [retrieved-reference (get-captured-reference t-conn 1)]
-          (is (= (:id retrieved-reference) 1))
-          (is (= (:reference retrieved-reference) reference))
-          (is (= (:classified retrieved-reference) false))
-            (is (= (:created-at retrieved-reference) datetime))))))
+    (db/delete-all-captured-references)
+    (let [reference "another ref"
+          datetime (java-time/local-date-time 2018 11 23 12 12)]
+      (is (= (create-captured-reference! {:reference reference
+                                          :created-at datetime})
+             1))
+      (let [retrieved-reference (get-captured-reference 1)]
+        (is (= (:id retrieved-reference) 1))
+        (is (= (:reference retrieved-reference) reference))
+        (is (= (:classified retrieved-reference) false))
+        (is (= (:created-at retrieved-reference) datetime)))))
 
   (testing "Creating multiple"
-    (jdbc/with-db-transaction [t-conn *db*]
-      (jdbc/db-set-rollback-only! t-conn)
-      (doseq [[reference-str id] [["one" 1]
-                                  ["two" 2]]]
-        (is (= (create-captured-reference! t-conn {:reference reference-str})
-               id))
-        (let [retrieved-reference (get-captured-reference t-conn id)]
-          (is (= (:id retrieved-reference) id))
-          (is (= (:reference retrieved-reference) reference-str)))))))
-
+    (db/delete-all-captured-references)
+    (doseq [[reference-str id] [["one" 1] ["two" 2]]]
+      (is (= (create-captured-reference!
+              (get-captured-reference-data {:reference reference-str}))
+             id))
+      (let [retrieved-reference (get-captured-reference id)]
+        (are [k v] (= (k retrieved-reference) v)
+          :id id
+          :reference reference-str)))))
 
 (deftest test-parse-retrieved-captured-reference
   (let [retrieved
@@ -71,51 +67,48 @@
                       (java-time/local-date-time 2018 1 1 12 22 10))
          :classified 0}
         parsed (parse-retrieved-captured-reference retrieved)]
+
     (testing "renames created_at -> created-at"
       (is (contains? parsed :created-at))
       (is (not (contains? parsed :created_at))))
+
     (testing "parses date"
       (is (= (:created-at parsed)
              (utils/str->date (:created_at retrieved)))))
+
     (testing "transforms classified into bool"
       (is (= (:classified parsed)
              false)))))
 
 (deftest test-get-all-captured-references
-  (jdbc/with-db-transaction [t-conn *db*]
-    (jdbc/db-set-rollback-only! t-conn)
-    (db/delete-all-captured-references t-conn)
-    (let [references ["ref one" "ref two"]
-          datetime-str "2018-01-01T00:00:00"]
-      (doseq [reference references]
-        (db/create-captured-reference! t-conn {:reference reference
-                                               :created-at datetime-str}))
-      (let [all-captured-references (get-all-captured-references t-conn)]
-        (is (= (count all-captured-references) (count references)))
-        (is (= (set (map :reference all-captured-references))
-               (set references)))
-        (is (= (set (map :created-at all-captured-references))
-               #{(utils/str->date datetime-str)}))))))
+  (db/delete-all-captured-references)
+  (let [references ["ref one" "ref two"]
+        datetime-str "2018-01-01T00:00:00"]
+    (doseq [reference references]
+      (db/create-captured-reference! {:reference reference
+                                      :created-at datetime-str}))
+    (let [all-captured-references (get-all-captured-references)]
+      (is (= (count all-captured-references) (count references)))
+      (is (= (set (map :reference all-captured-references))
+             (set references)))
+      (is (= (set (map :created-at all-captured-references))
+             #{(utils/str->date datetime-str)})))))
 
 (deftest test-get-captured-reference
-  (jdbc/with-db-transaction [t-conn *db*]
-    (jdbc/db-set-rollback-only! t-conn)
-    (testing "When id does not exist"
-      (is (= (get-captured-reference 921928129) nil)))))
+  (testing "When id does not exist"
+    (is (= (get-captured-reference 921928129) nil))))
 
 (deftest test-update-captured-reference!
-  (jdbc/with-db-transaction [t-conn *db*]
-    (jdbc/db-set-rollback-only! t-conn)
-    (testing "Empty map"
-      (let [id (create-captured-reference! t-conn captured-reference-data)
-            original-captured-reference (get-captured-reference t-conn id)]
-        (update-captured-reference! t-conn id {})
-        (is (= (get-captured-reference t-conn id) original-captured-reference))))
-    (testing "Updating reference"
-      (let [id (create-captured-reference! t-conn captured-reference-data)
-            original-captured-reference (get-captured-reference t-conn id)
-            new-reference "new reference!"]
-        (update-captured-reference! t-conn id {:reference new-reference})
-        (is (= (get-captured-reference t-conn id)
-               (assoc original-captured-reference :reference new-reference)))))))
+  (testing "Empty map"
+    (let [id (create-captured-reference! (get-captured-reference-data))
+          original-captured-reference (get-captured-reference id)]
+      (update-captured-reference! id {})
+      (is (= (get-captured-reference id) original-captured-reference))))
+  (testing "Updating reference"
+    (let [id (create-captured-reference! (get-captured-reference-data))
+          original-captured-reference (get-captured-reference id)
+          new-reference "new reference!"]
+      (update-captured-reference! id {:reference new-reference})
+      (is (= (get-captured-reference id)
+             (assoc original-captured-reference :reference new-reference))))))
 

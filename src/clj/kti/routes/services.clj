@@ -1,5 +1,7 @@
 (ns kti.routes.services
   (:require [kti.routes.services.captured-references :refer :all]
+            [kti.routes.services.articles
+             :refer [get-all-articles get-article create-article!]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
             [schema.core :as s]))
@@ -7,10 +9,18 @@
 ;;
 ;; Schemas
 ;; 
-(s/defschema CapturedReference {:id Integer
-                                :reference s/Str
+(s/defschema CapturedReference {:id         Integer
+                                :reference  s/Str
                                 :created-at java.time.LocalDateTime
                                 :classified s/Bool})
+
+(s/defschema Article {:id                    Integer
+                      :id-captured-reference Integer
+                      :description           s/Str
+                      :action-link           (s/maybe s/Str)
+                      :tags                  [s/Str]})
+
+(s/defschema ArticleInput (dissoc Article :id))
 
 (defmethod ring.swagger.json-schema/convert-class
   java.time.LocalDateTime [_ _] {:type "string" :format "date-time"})
@@ -62,4 +72,17 @@
           (do
             (update-captured-reference! id {:reference reference})
             (ok (get-captured-reference id)))
-          (not-found))))))
+          (not-found)))
+
+      (GET "/articles" []
+        :return       [Article]
+        :query-params []
+        :summary      "Bring all articles"
+        (ok (get-all-articles)))
+
+      ;; !!!! TODO TEST POST
+      (POST "/articles" []
+        :return       Article
+        :body         [article-data ArticleInput]
+        :summary      "POST for article"
+        (ok (get-article (create-article! article-data)))))))

@@ -1,6 +1,6 @@
 (ns kti.test.integration-test
   (:require [clojure.test :refer :all]
-            [kti.test.helpers :refer [not-found? ok?]]
+            [kti.test.helpers :refer :all]
             [kti.db.core :as db]
             [java-time]
             [kti.utils :as utils]
@@ -9,19 +9,10 @@
             [kti.handler :refer [app]]
             [cheshire.core :as cheshire]))
 
-;; !!!! TODO -> Major tests refactoring
-(defn body->map
-  "Converts a response body into a map. Assumes it is json."
-  [json-body]
-  (cheshire/parse-string (slurp json-body) true))
-
 ;; Starts the app before the first test
-(use-fixtures
-  :once
-  (fn [f]
-    (mount/start #'kti.config/env
-                 #'kti.handler/app)
-    (f)))
+(use-fixtures :once fixture-start-app-and-env)
+(use-fixtures :each fixture-bind-db-to-rollback-transaction)
+
 
 (deftest integration-tests-capturing-a-link
   (db/delete-all-captured-references)

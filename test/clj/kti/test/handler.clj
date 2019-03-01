@@ -3,29 +3,26 @@
             [ring.mock.request :refer :all]
             [kti.handler :refer :all]
             [kti.utils :refer :all]
-            [kti.test.helpers :refer [not-found? ok?]]
+            [kti.test.helpers
+             :refer [not-found? ok? empty-response? body->map clean-articles-and-tags]]
             [clojure.java.jdbc :as jdbc]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
                      get-captured-reference]]
+            [kti.routes.services.articles
+             :refer [create-article!]]
             [kti.utils :as utils]
             [kti.middleware.formats :as formats]
             [muuntaja.core :as m]
-            [mount.core :as mount]
-            [cheshire.core :as cheshire]))
+            [mount.core :as mount]))
 
 (def url-inexistant-captured-reference "/api/captured-references/not-an-id")
 (def captured-reference-data {:reference "some ref"})
 (def JSON_FORMAT "" "application/json; charset=utf-8")
 (def CONTENT_TYPE "" "Content-Type")
 
-;; !!!! TODO -> Repeated from integration_test
-(defn body->map
-  "Converts a response body into a map. Assumes it is json."
-  [json-body]
-  (cheshire/parse-string (slurp json-body) true))
-
+;; !!!! TODO -> Repeated from articles_test
 (use-fixtures
   :once
   (fn [f]
@@ -73,10 +70,7 @@
     (db/delete-all-captured-references)
     (let [run-get #(app (request :get "/api/captured-references"))]
       (testing "empty"
-        (let [response (run-get)
-              body (-> response :body body->map)]
-          (is (ok? response))
-          (is (= body []))))
+        (is (empty-response? (run-get))))
 
       (testing "two long"
         (let [first-created-id
@@ -131,3 +125,35 @@
       (testing "Returns created"
         (is (= (-> from-db :created-at date->str) (:created-at body)))
         (is (= (:reference body) (:reference from-db)))))))
+
+
+(deftest test-get-articles
+  (clean-articles-and-tags)
+  (let [run-request #(app (request :get "/api/articles"))]
+    (testing "empty"
+      (is (empty-response? (run-request))))
+
+    (testing "two articles"
+      ;; Creates references and articles
+      (let [captured-refs-ids (map create-captured-reference!
+                                   [{:reference "ref-one"} {:reference "ref-two"}])
+            articles-data [{:id-captured-reference (first captured-refs-ids)
+                            :description "Search for git book."
+                            :action-link "https://www.google.com/search?q=git+book"
+                            :tags []}
+                           {:id-captured-reference (second captured-refs-ids)
+                            :description "Read how linux works"
+                            :action-link nil
+                            :tags ["book"]}]
+            articles-ids (doall (map create-article! articles-data))
+            response (run-request)
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (count body) (count articles-ids)))
+        (is (= (first body)
+               (assoc (first articles-data) :id (first articles-ids))))
+        (is (= (second body)
+               (assoc (second articles-data) :id (second articles-ids))))))))
+        
+        
+        
