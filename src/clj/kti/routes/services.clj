@@ -18,7 +18,7 @@
                       :id-captured-reference Integer
                       :description           s/Str
                       :action-link           (s/maybe s/Str)
-                      :tags                  [s/Str]})
+                      :tags                  #{s/Str}})
 
 (s/defschema ArticleInput (dissoc Article :id))
 

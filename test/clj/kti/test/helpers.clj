@@ -40,7 +40,7 @@
               (set-default :id-captured-reference 1)
               (set-default :description "Search for git book.")
               (set-default :action-link "https://www.google.com/search?q=git+book")
-              (set-default :tags ["google"]))))
+              (set-default :tags #{"google"}))))
 
 (defn get-captured-reference-data
   "Captured-reference data for testing"

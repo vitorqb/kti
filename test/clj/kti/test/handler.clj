@@ -126,7 +126,8 @@
             captured-refs-ids (doall (map create-captured-reference!
                                           captured-refs-data))
             articles-data [(get-article-data
-                            {:id-captured-reference (first captured-refs-ids)})
+                            {:id-captured-reference (first captured-refs-ids)
+                             :tags []})
                            {:id-captured-reference (second captured-refs-ids)
                             :description "Read how linux works"
                             :action-link nil
@@ -150,4 +151,4 @@
         body (-> response :body body->map)]
     (is (= (:status response) 201))
     (is (integer? (:id body)))
-    (is (= (dissoc body :id) data))))
+    (is (= (-> body (dissoc :id) (update :tags set)) data))))

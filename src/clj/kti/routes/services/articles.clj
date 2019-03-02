@@ -14,7 +14,7 @@
 
 (defn create-article!
   [{:keys [tags] :as data}]
-  (let [all-tags       (set (get-all-tags))
+  (let [all-tags       (get-all-tags)
         tag-exists?    #(all-tags %)
         tags-to-create (remove tag-exists? tags)]
     (with-db-transaction [t-conn *db*]
@@ -61,11 +61,11 @@
       (select-keys [:id :description :tags])
       (assoc :action-link (:action_link x))
       (assoc :id-captured-reference (:id_captured_reference x))
-      (update :tags #(and % (string/split % #" ")))
-      (update :tags #(or % []))))
+      (update :tags #(and % (set (string/split % #" "))))
+      (update :tags #(or % #{}))))
 
 (defn get-tags-for-article [article]
-  (->> (db/get-tags-for-article article) (map :id_tag) (into [])))
+  (->> (db/get-tags-for-article article) (map :id_tag) (into #{})))
 
 (defn get-all-tags []
-  (->> (db/get-all-tags) (map :tag) (into [])))
+  (->> (db/get-all-tags) (map :tag) (into #{})))

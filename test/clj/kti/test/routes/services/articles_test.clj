@@ -29,7 +29,7 @@
   (testing "many tags"
     (let [captured-ref-id (create-test-captured-reference!)
           data (get-article-data {:id-captured-reference captured-ref-id
-                                  :tags ["tag1" "tag2" "another"]})
+                                  :tags #{"tag1" "tag2" "another"}})
           created-article-id (create-article! data)]
       (is (= (get-article created-article-id)
              (assoc data :id created-article-id))))))
@@ -41,12 +41,12 @@
               {:id-captured-reference captured-reference-id
                :description "Search for git book."
                :action-link "https://www.google.com/search?q=git+book"
-               :tags []}]
+               :tags #{}}]
         ids (doall (map create-article! data))
         gotten-articles (get-all-articles)]
     (is (= 2 (count gotten-articles)))
     (is (= (map :description gotten-articles) (map :description data)))
-    (is (= (map :tags gotten-articles) (map :tags data)))))
+    (is (= (map (comp set :tags) gotten-articles) (map :tags data)))))
 
 (deftest test-parse-article-data
   (let [raw-data {:id 1
@@ -60,10 +60,10 @@
               :id-captured-reference 2
               :description "hola"
               :action-link nil
-              :tags ["tag1" "tag2"]})))
+              :tags #{"tag1" "tag2"}})))
     (testing "Handles nil tags"
       (is (= (-> raw-data (assoc :tags nil) parse-article-data :tags)
-             [])))))
+             #{})))))
 
 (deftest test-create-tag!
   (db/delete-all-tags)
@@ -71,7 +71,7 @@
   (testing "base"
     (create-tag! "tag1")
     (is (= (count-tags) 1))
-    (is (= (get-all-tags) ["tag1"])))
+    (is (= (get-all-tags) #{"tag1"})))
 
   (testing "Uses validate-tag to validate before creating"
     (with-redefs [validate-tag (constantly "err-msg")]
@@ -100,10 +100,10 @@
   (clean-articles-and-tags)
   (let [captured-ref-id (create-test-captured-reference!)
         data (get-article-data {:id-captured-reference captured-ref-id
-                                        :tags ["tag1" "tag2"]})
+                                :tags #{"tag1" "tag2"}})
         article-id (create-article! data)]
     (testing "Creates tags"      
-      (is (= (set (get-all-tags)) (set (:tags data))))
+      (is (= (get-all-tags) (set (:tags data))))
       (is (= (get-tags-for-article {:id article-id}) (:tags data))))
 
     (testing "Adds values to db"
