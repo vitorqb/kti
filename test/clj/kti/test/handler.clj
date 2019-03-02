@@ -4,7 +4,15 @@
             [kti.handler :refer :all]
             [kti.utils :refer :all]
             [kti.test.helpers
-             :refer [not-found? ok? empty-response? body->map clean-articles-and-tags]]
+             :refer [not-found?
+                     ok?
+                     empty-response?
+                     body->map
+                     clean-articles-and-tags
+                     fixture-start-app-and-env
+                     fixture-bind-db-to-rollback-transaction
+                     get-captured-reference-data
+                     get-article-data]]
             [clojure.java.jdbc :as jdbc]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
@@ -22,21 +30,8 @@
 (def JSON_FORMAT "" "application/json; charset=utf-8")
 (def CONTENT_TYPE "" "Content-Type")
 
-;; !!!! TODO -> Repeated from articles_test
-(use-fixtures
-  :once
-  (fn [f]
-    (mount/start #'kti.config/env
-                 #'kti.handler/app)
-    (f)))
-
-(use-fixtures
-  :each
-  (fn [f]
-    (jdbc/with-db-transaction [t-conn *db*]
-      (jdbc/db-set-rollback-only! t-conn)
-      (binding [*db* t-conn]
-        (f)))))
+(use-fixtures :once fixture-start-app-and-env)
+(use-fixtures :each fixture-bind-db-to-rollback-transaction)
 
 (deftest test-returns-json-format
   ;; Any url should behave the same
@@ -50,21 +45,19 @@
         (is (not-found? response))))
 
     (testing "found"
-      (let [created-at (java-time/local-date-time 1993 11 23)
-            captured-reference-id (-> captured-reference-data
-                                      (assoc :created-at created-at)
-                                      create-captured-reference!)
+      (let [data (get-captured-reference-data)
+            captured-reference-id (create-captured-reference! data)
             response (->> captured-reference-id
                           (str "/api/captured-references/")
                           (request :get)
                           (app))
             body (-> response :body body->map)]
         (is (ok? response))
-        (doseq [[k v] [[:id         captured-reference-id]
-                       [:reference  (:reference captured-reference-data)]
-                       [:created-at (utils/date->str created-at)]
-                       [:classified false]]]
-          (is (= (k body) v))))))
+        (are [k v] (= (k body) v)
+          :id captured-reference-id
+          :reference (:reference data)
+          :created-at (utils/date->str (:created-at data))
+          :classified false))))
 
   (testing "get all captured references"
     (db/delete-all-captured-references)
@@ -73,20 +66,15 @@
         (is (empty-response? (run-get))))
 
       (testing "two long"
-        (let [first-created-id
-              (create-captured-reference!
-               {:reference "one"
-                :created-at (java-time/local-date-time 1993 11 23)})
-              second-created-id
-              (create-captured-reference!
-               {:reference "two"
-                :created-at (java-time/local-date-time 1991 8 13)})
+        (let [datas [(get-captured-reference-data)
+                     {:reference "two"
+                      :created-at (java-time/local-date-time 1991 8 13)}]
+              ids (doall (map create-captured-reference! datas))
               response (run-get)
               body (-> response :body body->map)]
           (is (ok? response))
           (is (= (count body) 2))
-          (is (= #{first-created-id second-created-id}
-                 (->> body (map :id) (into #{})))))))))
+          (is (= (set ids) (->> body (map :id) set))))))))
 
 (deftest test-put-captured-reference
   (let [make-url #(str "/api/captured-references/" %)
@@ -97,9 +85,8 @@
         (is (not-found? response))))
 
     (testing "Id found"
-      (let [id (->> (java-time/local-date-time 2018 1 1)
-                    (assoc captured-reference-data :created-at)
-                    (create-captured-reference!))
+      (let [data (get-captured-reference-data)
+            id (create-captured-reference! data)
             new-data {:reference "new-reeef"}
             response (app (-> (make-request id) (json-body new-data)))
             body (-> response :body body->map)]
@@ -135,12 +122,11 @@
 
     (testing "two articles"
       ;; Creates references and articles
-      (let [captured-refs-ids (map create-captured-reference!
-                                   [{:reference "ref-one"} {:reference "ref-two"}])
-            articles-data [{:id-captured-reference (first captured-refs-ids)
-                            :description "Search for git book."
-                            :action-link "https://www.google.com/search?q=git+book"
-                            :tags []}
+      (let [captured-refs-data [{:reference "ref-one"} {:reference "ref-two"}]
+            captured-refs-ids (doall (map create-captured-reference!
+                                          captured-refs-data))
+            articles-data [(get-article-data
+                            {:id-captured-reference (first captured-refs-ids)})
                            {:id-captured-reference (second captured-refs-ids)
                             :description "Read how linux works"
                             :action-link nil
@@ -155,5 +141,13 @@
         (is (= (second body)
                (assoc (second articles-data) :id (second articles-ids))))))))
         
-        
-        
+(deftest test-post-article
+  (clean-articles-and-tags)
+  (let [data (get-article-data)
+        response (-> (request :post "/api/articles")
+                     (json-body data)
+                     (app))
+        body (-> response :body body->map)]
+    (is (= (:status response) 201))
+    (is (integer? (:id body)))
+    (is (= (dissoc body :id) data))))

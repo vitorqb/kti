@@ -34,21 +34,19 @@
                :spec "/swagger.json"
                :data {:info {:version "1.0.0"
                              :title "Keep This Info - KTI"
-                             :description (concat
-                                           "A small service to capture and remember"
-                                           " things you want to see later")}}}}
+                             :description (str "A small service to capture and"
+                                               " remember things you want to see"
+                                               " later")}}}}
     
     (context "/api" []
 
       (GET "/captured-references" []
         :return       [CapturedReference]
-        :query-params []
         :summary      "Bring all captured references"
         (ok (get-all-captured-references)))
 
       (GET "/captured-references/:id" [id]
         :return       CapturedReference
-        :query-params []
         :summary      "Get for a captured reference."
         (if-let [captured-reference (get-captured-reference id)]
           (ok captured-reference)
@@ -76,13 +74,14 @@
 
       (GET "/articles" []
         :return       [Article]
-        :query-params []
         :summary      "Bring all articles"
         (ok (get-all-articles)))
 
-      ;; !!!! TODO TEST POST
       (POST "/articles" []
         :return       Article
         :body         [article-data ArticleInput]
         :summary      "POST for article"
-        (ok (get-article (create-article! article-data)))))))
+        (let [id (create-article! article-data)]
+          (created
+           (str "/articles/" id)
+           (get-article id)))))))
