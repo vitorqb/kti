@@ -112,3 +112,14 @@
       (is (= (get-captured-reference id)
              (assoc original-captured-reference :reference new-reference))))))
 
+(deftest test-validate-captured-reference-id
+  (is (= (validate-captured-reference-id nil) CAPTURED_REFERENCE_ID_ERR_NIL))
+  (is (= (validate-captured-reference-id "a")
+         (CAPTURED_REFERENCE_ID_ERR_NOT_FOUND "a")))
+  (let [id (create-test-captured-reference!)]
+    (is (nil? (validate-captured-reference-id id)))))
+
+(deftest test-captured-reference-id-exists?
+  (is (nil? (captured-reference-id-exists? 291372189731)))
+  (let [id (create-test-captured-reference!)]
+    (is (= (captured-reference-id-exists? id) id))))

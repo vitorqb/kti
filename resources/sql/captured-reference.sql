@@ -21,3 +21,6 @@ WHERE id = :id
 -- :name get-all-captured-references :? :*
 -- :doc retrieves all captured references
 SELECT id, reference, created_at, FALSE as classified FROM captured_references
+
+-- :name captured-reference-id-exists? :? :1
+SELECT :id AS res FROM captured_references WHERE id = :id

@@ -4,7 +4,8 @@
             [kti.routes.services.articles :refer :all]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
-             :refer [create-captured-reference!]]
+             :refer [create-captured-reference!
+                     get-captured-reference]]
             [kti.test.helpers
              :refer [clean-articles-and-tags
                      fixture-start-app-and-env
@@ -131,4 +132,8 @@
                         (not= (first (k @used-args)) *db*))
             :create-article!
             :create-article-tag!
-            :create-tag!))))))
+            :create-tag!)))))
+  (testing "Fails if captured-reference does not exists"
+    (let [data (get-article-data {:id-captured-reference 291928173})]
+      (assert (-> data :id-captured-reference get-captured-reference nil?))
+      (is (thrown? clojure.lang.ExceptionInfo (create-article! data))))))

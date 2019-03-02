@@ -1,5 +1,6 @@
 (ns kti.routes.services.articles
   (:require [kti.db.core :as db :refer [*db*]]
+            [kti.routes.services.captured-references :refer [get-captured-reference]]
             [clojure.java.jdbc :refer [with-db-transaction]]
             [clojure.string :as string]))
 
@@ -11,9 +12,16 @@
 (def TAG_ERR_INVALID_CHARS "Tag contains invalid characters.")
 (def TAG_ERR_TOO_LONG "Tag is too long.")
 (def TAG_ERR_TOO_SHORT "Tag is too short")
+(def ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+  #(format "There is no id with captured reference '%s'" %))
 
 (defn create-article!
-  [{:keys [tags] :as data}]
+  [{:keys [tags id-captured-reference] :as data}]
+  (when (nil? (and id-captured-reference
+                   (get-captured-reference id-captured-reference)))
+    (throw (ex-info (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                     id-captured-reference)
+                    {:type :invalid-captured-reference-if})))
   (let [all-tags       (get-all-tags)
         tag-exists?    #(all-tags %)
         tags-to-create (remove tag-exists? tags)]
