@@ -4,6 +4,7 @@
             [kti.utils :as utils]
             [luminus-migrations.core :as migrations]
             [kti.routes.services.captured-references :refer :all]
+            [kti.routes.services.articles :refer [create-article!]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]
             [clojure.test :refer :all]
@@ -16,6 +17,7 @@
 (deftest test-creating-captured-references
   (testing "Creating and returning a new captured reference"
     (db/delete-all-captured-references)
+    (db/delete-all-articles)
     (let [data (get-captured-reference-data)
           id (create-captured-reference! data)
           retrieved-reference (get-captured-reference id)]
@@ -95,8 +97,15 @@
              #{(utils/str->date datetime-str)})))))
 
 (deftest test-get-captured-reference
+  (db/delete-all-articles)
+  (db/delete-all-captured-references)
   (testing "When id does not exist"
-    (is (= (get-captured-reference 921928129) nil))))
+    (is (= (get-captured-reference 921928129) nil)))
+  (testing "Classified is True after an article is created"
+    (let [data (-> (create-test-captured-reference!) get-captured-reference)]
+      (is (false? (:classified data)))
+      (create-article! (get-article-data {:id-captured-reference (:id data)}))
+      (is (true? (-> data :id get-captured-reference :classified))))))
 
 (deftest test-update-captured-reference!
   (testing "Empty map"
@@ -123,3 +132,4 @@
   (is (nil? (captured-reference-id-exists? 291372189731)))
   (let [id (create-test-captured-reference!)]
     (is (= (captured-reference-id-exists? id) id))))
+

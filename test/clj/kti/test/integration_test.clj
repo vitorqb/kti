@@ -16,6 +16,7 @@
 
 (deftest integration-tests-capturing-a-link
   (db/delete-all-captured-references)
+  (db/delete-all-articles)
   (let [link "https://www.youtube.com/watch?v=VON0rut5Pl8"
         created-id (atom nil)]
     (testing "User captures a reference link from youtube"

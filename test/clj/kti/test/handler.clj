@@ -39,6 +39,7 @@
     (is (= JSON_FORMAT (get-in response [:headers CONTENT_TYPE])))))
 
 (deftest test-get-captured-reference
+  (db/delete-all-articles)
   (testing "get captured reference for a single id"
     (testing "not found"
       (let [response (app (request :get url-inexistant-captured-reference))]
