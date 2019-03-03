@@ -12,13 +12,14 @@
           :stop (conman/disconnect! *db*))
 
 (conman/bind-connection *db* "sql/user.sql")
-
 (conman/bind-connection *db* "sql/captured-reference.sql")
+
 (defn get-captured-reference
   ([] (get-captured-reference {}))
   ([params] (q-get-captured-reference (assoc params :select (snip-select))))
   ([db params & rest]
    (apply q-get-captured-reference db (assoc params :select (snip-select)) rest)))
+
 (defn get-all-captured-references
   ([] (get-all-captured-references {}))
   ([params] (q-get-all-captured-references (assoc params :select (snip-select))))
@@ -26,8 +27,8 @@
    (apply q-get-all-captured-references db (assoc params :select (snip-select)) rest)))
 
 (conman/bind-connection *db* "sql/tags.sql")
-
 (conman/bind-connection *db* "sql/articles.sql")
+(conman/bind-connection *db* "sql/reviews.sql")
 
 (extend-protocol jdbc/IResultSetReadColumn
   java.sql.Timestamp

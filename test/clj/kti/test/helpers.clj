@@ -49,6 +49,14 @@
               (set-default :reference "Some reference")
               (set-default :created-at (java-time/local-date-time 1993 11 23)))))
 
+(defn get-review-data
+  ([] (get-review-data {}))
+  ([data] (-> data
+              (set-default :id-article 92179)
+              (set-default :feedback-text "Feedback text...")
+              (set-default :status :pending))))
+
+
 ;; Fixtures
 (defn fixture-start-app-and-env
   [f]

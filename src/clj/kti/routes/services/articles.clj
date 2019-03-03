@@ -35,6 +35,10 @@
           (db/create-article-tag! t-conn {:article-id article-id :tag t}))
         article-id))))
 
+(defn article-exists?
+  [id]
+  (-> {:id id} db/article-exists? (get :resp)))
+
 (defn validate-tag [x]
   (cond
     (not (string? x))
