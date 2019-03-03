@@ -94,6 +94,13 @@
         :summary      "Bring all articles"
         (ok (get-all-articles)))
 
+      (GET "/articles/:id" [id]
+        :return  Article
+        :summary "Get for a single article"
+        (if-let [article (get-article id)]
+          (ok article)
+          (not-found)))
+
       (POST "/articles" []
         :return       Article
         :body         [article-data ArticleInput]
