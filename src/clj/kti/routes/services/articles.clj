@@ -6,7 +6,6 @@
 
 (declare parse-article-data get-all-tags create-tag!)
 
-;; !!!! TODO -> return tags as set, not array
 (def MAX_TAG_LENGTH 49)
 (def MIN_TAG_LENGTH 2)
 (def TAG_ERR_INVALID_CHARS "Tag contains invalid characters.")

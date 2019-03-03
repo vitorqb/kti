@@ -5,8 +5,6 @@
 
 (declare parse-retrieved-captured-reference)
 
-;; !!!! TODO -> Change classified to check for article.
-
 (defn create-captured-reference!
   ([x] (create-captured-reference! *db* x))
 
