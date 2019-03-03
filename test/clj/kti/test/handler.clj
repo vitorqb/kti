@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [ring.mock.request :refer :all]
             [kti.handler :refer :all]
+            [kti.routes.services :refer [Review]]
             [kti.utils :refer :all]
             [kti.test.helpers :refer :all]
             [clojure.java.jdbc :as jdbc]
@@ -11,8 +12,11 @@
                      get-captured-reference]]
             [kti.routes.services.articles
              :refer [create-article!]]
+            [kti.routes.services.reviews
+             :refer [create-review! get-review]]
             [kti.utils :as utils]
             [kti.middleware.formats :as formats]
+            [ring.swagger.schema :as ring-schema]
             [muuntaja.core :as m]
             [mount.core :as mount]))
 
@@ -146,7 +150,6 @@
     (is (integer? (:id body)))
     (is (= (-> body (dissoc :id) (update :tags set)) data))))
 
-
 (deftest test-post-reviews
   (let [captured-ref-id (create-test-captured-reference!)
         article-id (create-article! (get-article-data
@@ -161,3 +164,24 @@
         (is (integer? (:id body)))
         (is (= (-> body (dissoc :id) (update :status keyword))
                data))))))
+
+(deftest test-get-reviews
+  (db/delete-all-reviews)
+  (let [captured-ref-id (create-test-captured-reference!)
+        article-id (create-article! (get-article-data
+                                     {:id-captured-reference captured-ref-id}))
+        review (-> {:id-article article-id}
+                   get-review-data
+                   create-review!
+                   get-review)]
+    (testing "Getting a single review"
+      (let [response (app (request :get (str "/api/reviews/" (:id review))))
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (ring-schema/coerce! Review body) review))))
+
+    (testing "Getting all reviews"
+      (let [response (app (request :get "/api/reviews"))
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (map #(ring-schema/coerce! Review %) body) [review]))))))

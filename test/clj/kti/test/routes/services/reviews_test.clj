@@ -62,3 +62,18 @@
       (with-redefs [article-exists? (fn [_] false)]
         (is (thrown? clojure.lang.ExceptionInfo
                      (create-review! (get-review-data))))))))
+
+(deftest test-get-all-reviews
+  (db/delete-all-reviews)
+  (let [captured-refs-ids [(create-test-captured-reference!)
+                           (create-test-captured-reference!)]
+        articles-ids (doall
+                      (map (fn [id]
+                             (create-article! (get-article-data
+                                               {:id-captured-reference id})))
+                           captured-refs-ids))
+        reviews-ids (doall (map (fn [id]
+                                  (create-review! (get-review-data
+                                                   {:id-article id})))
+                          articles-ids))]
+    (is (= (get-all-reviews) (map get-review reviews-ids)))))

@@ -3,7 +3,7 @@
             [kti.routes.services.articles
              :refer [get-all-articles get-article create-article!]]
             [kti.routes.services.reviews
-             :refer [create-review! get-review]]
+             :refer [create-review! get-review get-all-reviews]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
             [schema.core :as s]))
@@ -108,4 +108,16 @@
         :body          [data ReviewInput]
         :summary       "POST for review"
         (let [id (create-review! data)]
-          (created (str "/reviews/" id) (get-review id)))))))
+          (created (str "/reviews/" id) (get-review id))))
+
+      (GET "/reviews" []
+        :return        [Review]
+        :summary       "GET for reviews"
+        (ok (get-all-reviews)))
+
+      (GET "/reviews/:id" [id]
+        :return        Review
+        :summary       "GET for a single review"
+        (if-let [review (get-review id)]
+          (ok review)
+          (not-found))))))
