@@ -145,3 +145,19 @@
     (is (= (:status response) 201))
     (is (integer? (:id body)))
     (is (= (-> body (dissoc :id) (update :tags set)) data))))
+
+
+(deftest test-post-reviews
+  (let [captured-ref-id (create-test-captured-reference!)
+        article-id (create-article! (get-article-data
+                                     {:id-captured-reference captured-ref-id}))]
+    (testing "Post data (base)"
+      (let [data (get-review-data {:id-article article-id})
+            response (-> (request :post "/api/reviews")
+                         (json-body data)
+                         (app))
+            body (-> response :body body->map)]
+        (is (= (:status response) 201))
+        (is (integer? (:id body)))
+        (is (= (-> body (dissoc :id) (update :status keyword))
+               data))))))

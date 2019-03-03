@@ -2,6 +2,8 @@
   (:require [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.articles
              :refer [get-all-articles get-article create-article!]]
+            [kti.routes.services.reviews
+             :refer [create-review! get-review]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
             [schema.core :as s]))
@@ -9,18 +11,33 @@
 ;;
 ;; Schemas
 ;; 
-(s/defschema CapturedReference {:id         Integer
-                                :reference  s/Str
-                                :created-at java.time.LocalDateTime
-                                :classified s/Bool})
+(s/defschema CapturedReference
+  {:id         Integer
+   :reference  s/Str
+   :created-at java.time.LocalDateTime
+   :classified s/Bool})
 
-(s/defschema Article {:id                    Integer
-                      :id-captured-reference Integer
-                      :description           s/Str
-                      :action-link           (s/maybe s/Str)
-                      :tags                  #{s/Str}})
+(s/defschema Article
+  {:id                    Integer
+   :id-captured-reference Integer
+   :description           s/Str
+   :action-link           (s/maybe s/Str)
+   :tags                  #{s/Str}})
 
-(s/defschema ArticleInput (dissoc Article :id))
+(s/defschema ArticleInput
+  (dissoc Article :id))
+
+(s/defschema ReviewStatus
+  (s/enum :pending :completed :discarded))
+
+(s/defschema Review
+  {:id            Integer
+   :id-article    Integer
+   :feedback-text s/Str
+   :status         ReviewStatus})
+
+(s/defschema ReviewInput
+  (dissoc Review :id))
 
 (defmethod ring.swagger.json-schema/convert-class
   java.time.LocalDateTime [_ _] {:type "string" :format "date-time"})
@@ -84,4 +101,11 @@
         (let [id (create-article! article-data)]
           (created
            (str "/articles/" id)
-           (get-article id)))))))
+           (get-article id))))
+
+      (POST "/reviews" []
+        :return        Review
+        :body          [data ReviewInput]
+        :summary       "POST for review"
+        (let [id (create-review! data)]
+          (created (str "/reviews/" id) (get-review id)))))))

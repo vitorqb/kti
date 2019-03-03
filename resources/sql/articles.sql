@@ -29,6 +29,9 @@ FROM articles a
 -- :doc counts number of entries in articles table
 SELECT COUNT(*) FROM articles;
 
+-- :name article-exists? :? :1
+SELECT :id AS resp FROM articles WHERE id = :id
+
 -- :name create-article-tag! :insert
 -- :doc creates a new entry on articles_tags
 INSERT INTO articles_tags (id_article, id_tag) VALUES (:article-id, :tag)
