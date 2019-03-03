@@ -3,16 +3,7 @@
             [ring.mock.request :refer :all]
             [kti.handler :refer :all]
             [kti.utils :refer :all]
-            [kti.test.helpers
-             :refer [not-found?
-                     ok?
-                     empty-response?
-                     body->map
-                     clean-articles-and-tags
-                     fixture-start-app-and-env
-                     fixture-bind-db-to-rollback-transaction
-                     get-captured-reference-data
-                     get-article-data]]
+            [kti.test.helpers :refer :all]
             [clojure.java.jdbc :as jdbc]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
@@ -145,7 +136,8 @@
         
 (deftest test-post-article
   (clean-articles-and-tags)
-  (let [data (get-article-data)
+  (let [captured-ref-id (create-test-captured-reference!)
+        data (get-article-data {:id-captured-reference captured-ref-id})
         response (-> (request :post "/api/articles")
                      (json-body data)
                      (app))
