@@ -1,15 +1,12 @@
 -- :snip snip-select
-SELECT id,
-       reference,
-       created_at,
-       ( SELECT
-             CASE
-                WHEN EXISTS(SELECT * FROM articles WHERE id_captured_reference = cr.id)
-                     THEN True
-                ELSE False
-             END
-       ) as classified
-FROM captured_references cr
+SELECT cr.id as id,
+       cr.reference as reference,
+       cr.created_at as created_at,
+       CASE
+            WHEN a.id IS NULL THEN FALSE ELSE TRUE
+       END AS classified
+FROM captured_references AS cr
+LEFT OUTER JOIN articles AS a ON a.id_captured_reference = cr.id
 
 -- :name create-captured-reference! :insert
 -- :doc creates a new captured-reference
@@ -20,7 +17,7 @@ VALUES (:reference, :created-at)
 -- :name q-get-captured-reference :? :1
 -- :doc retrieves a captured-reference given it'is id
 :snip:select
-WHERE id = :id
+WHERE cr.id = :id
 
 -- :name q-get-all-captured-references :? :*
 -- :doc retrieves all captured references

@@ -1,5 +1,4 @@
--- :name get-article :? :1
--- :doc retrieves an article given it id
+-- :snip snip-select-article
 SELECT id,
        id_captured_reference,
        description,
@@ -10,20 +9,12 @@ SELECT id,
          WHERE a_t.id_article = a.id
        ) as tags
 FROM articles a
-WHERE id = :id
 
--- :name get-all-articles :? :*
--- :doc retrieves all articles
-SELECT id,
-       id_captured_reference,
-       description,
-       action_link,
-       (
-         SELECT GROUP_CONCAT(a_t.id_tag, ' ')
-         FROM articles_tags a_t
-         WHERE a_t.id_article = a.id
-       ) as tags
-FROM articles a
+-- :name q-get-article :? :1
+:snip:select WHERE id = :id
+
+-- :name q-get-all-articles :? :*
+:snip:select
 
 -- :name count-articles :? :1
 -- :doc counts number of entries in articles table
