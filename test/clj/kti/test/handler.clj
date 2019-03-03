@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [ring.mock.request :refer :all]
             [kti.handler :refer :all]
-            [kti.routes.services :refer [Review]]
+            [kti.routes.services :refer [Review Article]]
             [kti.utils :refer :all]
             [kti.test.helpers :refer :all]
             [clojure.java.jdbc :as jdbc]
@@ -11,7 +11,7 @@
              :refer [create-captured-reference!
                      get-captured-reference]]
             [kti.routes.services.articles
-             :refer [create-article!]]
+             :refer [create-article! get-article]]
             [kti.routes.services.reviews
              :refer [create-review! get-review]]
             [kti.utils :as utils]
@@ -137,6 +137,18 @@
                (assoc (first articles-data) :id (first articles-ids))))
         (is (= (second body)
                (assoc (second articles-data) :id (second articles-ids))))))))
+
+(deftest test-get-article
+  (let [captured-ref-id (create-test-captured-reference!)
+        article (-> {:id-captured-reference captured-ref-id}
+                    get-article-data
+                    create-article!
+                    get-article)
+        response (app (request :get (str "/api/articles/" (:id article))))
+        body (-> response :body body->map)]
+    (is (ok? response))
+    (is (= (ring-schema/coerce! Article body) article))))
+    
         
 (deftest test-post-article
   (clean-articles-and-tags)
