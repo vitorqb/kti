@@ -54,7 +54,7 @@
   ([data] (-> data
               (set-default :id-article 92179)
               (set-default :feedback-text "Feedback text...")
-              (set-default :status :pending))))
+              (set-default :status :in-progress))))
 
 
 ;; Fixtures
