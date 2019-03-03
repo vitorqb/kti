@@ -28,7 +28,7 @@
   (dissoc Article :id))
 
 (s/defschema ReviewStatus
-  (s/enum :pending :completed :discarded))
+  (s/enum :in-progress :completed :discarded))
 
 (s/defschema Review
   {:id            Integer

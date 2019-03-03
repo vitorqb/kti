@@ -3,7 +3,7 @@
             [kti.routes.services.articles :refer [article-exists?]]
             [clojure.string :as str]))
 
-(def review-status #{:pending :completed :discarded})
+(def review-status #{:in-progress :completed :discarded})
 
 (defn create-review!
   "Creates a review"

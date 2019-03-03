@@ -30,7 +30,7 @@
 (deftest test-parse-review
   (let [data {:id_article 12
               :feedback_text "Some text"
-              :status "PENDING"}
+              :status "IN-PROGRESS"}
         resp (parse-review data)]
 
     (testing "id-article"
@@ -40,7 +40,7 @@
       (is (= (:feedback-text resp) (:feedback_text data))))
 
     (testing "status"
-      (is (= (:status resp) :pending))
+      (is (= (:status resp) :in-progress))
       (is (= (:status (-> data (assoc :status "COMPLETED") parse-review))
              :completed))
       (is (= (:status (-> data (assoc :status "DISCARDED") parse-review))
