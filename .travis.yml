@@ -1,0 +1,7 @@
+# Probably because of a bud, this file can't be empty
+script: echo '{:foo "bar"}' >test-config.edn && lein test
+env:
+  global:
+    - PORT=3000
+    - DATABASE_URL="jdbc:sqlite:test.db"
+language: clojure
