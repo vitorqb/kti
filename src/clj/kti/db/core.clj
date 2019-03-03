@@ -28,6 +28,19 @@
 
 (conman/bind-connection *db* "sql/tags.sql")
 (conman/bind-connection *db* "sql/articles.sql")
+
+(defn get-article
+  ([] (get-article {}))
+  ([params] (q-get-article (assoc params :select (snip-select-article))))
+  ([db params & rest]
+   (apply q-get-article db (assoc params :select (snip-select-article) rest))))
+
+(defn get-all-articles
+  ([] (get-all-articles {}))
+  ([params] (q-get-all-articles (assoc params :select (snip-select-article))))
+  ([db params & rest]
+   (apply q-get-all-articles (assoc params :select (snip-select-article) rest))))
+
 (conman/bind-connection *db* "sql/reviews.sql")
 
 (extend-protocol jdbc/IResultSetReadColumn
