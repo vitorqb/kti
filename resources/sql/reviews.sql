@@ -5,3 +5,9 @@ SELECT id, id_article, feedback_text, status FROM reviews WHERE id = :id
 -- :name create-review! :insert
 INSERT INTO reviews (id_article, feedback_text, status)
 VALUES (:id-article, :feedback-text, :status)
+
+-- :name get-all-reviews :? :*
+SELECT id, id_article, feedback_text, status FROM reviews
+
+-- :name delete-all-reviews :!
+DELETE FROM reviews

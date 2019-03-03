@@ -32,3 +32,5 @@
   "Gets a review by id"
   [id]
   (some-> {:id id} db/get-review parse-review))
+
+(def get-all-reviews (comp (partial map parse-review) db/get-all-reviews))
