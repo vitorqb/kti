@@ -1,7 +1,8 @@
 (ns kti.routes.services
   (:require [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.articles
-             :refer [get-all-articles get-article create-article!]]
+             :refer [get-all-articles get-article create-article! update-article!
+                     article-exists?]]
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews]]
             [ring.util.http-response :refer :all]
@@ -109,6 +110,16 @@
           (created
            (str "/articles/" id)
            (get-article id))))
+
+      (PUT "/articles/:id" [id]
+        :return  Article
+        :body    [data ArticleInput]
+        :summary "PUT for article"
+        (if (article-exists? id)
+          (do
+            (update-article! id data)
+            (ok (get-article id)))
+          (not-found)))
 
       (POST "/reviews" []
         :return        Review

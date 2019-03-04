@@ -162,6 +162,36 @@
     (is (integer? (:id body)))
     (is (= (-> body (dissoc :id) (update :tags set)) data))))
 
+(deftest test-put-article
+  (testing "put"
+    (let [captured-ref-id (create-test-captured-reference!)
+          new-captured-ref-id (create-test-captured-reference!)
+          article (-> {:id-captured-reference captured-ref-id}
+                      get-article-data
+                      create-article!
+                      get-article)
+          new-data {:id-captured-reference new-captured-ref-id
+                    :description "new description"
+                    :action-link nil
+                    :tags #{"tag-a" "tag-b"}}
+          response (as-> article it
+                     (:id it)
+                     (str "/api/articles/" it)
+                     (request :put it)
+                     (json-body it new-data)
+                     (app it))
+          body (-> response :body body->map)]
+      (is (= (ring-schema/coerce! Article body)
+             (assoc new-data :id (:id article))))
+      (testing "not found"
+        (let [id 829]
+          (is (nil? (get-article id)))
+          (is (not-found? (as-> id it
+                            (str "/api/articles/" it)
+                            (request :put it)
+                            (json-body it new-data)
+                            (app it)))))))))
+
 (deftest test-post-reviews
   (let [captured-ref-id (create-test-captured-reference!)
         article-id (create-article! (get-article-data
