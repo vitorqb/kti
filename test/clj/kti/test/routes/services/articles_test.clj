@@ -35,6 +35,63 @@
       (is (= (get-article created-article-id)
              (assoc data :id created-article-id))))))
 
+(deftest test-update-article
+  (let [captured-ref-id (create-test-captured-reference!)
+        article-id (-> {:id-captured-reference captured-ref-id}
+                       get-article-data
+                       create-article!)
+        new-captured-ref-id (create-test-captured-reference!)
+        new-data {:id-captured-reference new-captured-ref-id
+                  :description "blabla"
+                  :action-link "www.goo.nl"
+                  :tags #{"11" "22" "33"}}]
+
+    (testing "validates with validate-article"
+      (with-redefs [validate-article (fn [& _] (throw (Exception. "err")))]
+        (is (thrown-with-msg? Exception #"err"
+                              (update-article! article-id new-data)))))
+
+    (testing "base"
+      (update-article! article-id new-data)
+      (is (= (assoc new-data :id article-id)
+             (get-article article-id))))
+
+    (testing "Calls create-missing-tags"
+      (let [args (atom nil)]
+        (with-redefs [create-missing-tags #(reset! args %&)]
+          (update-article! article-id new-data))
+        (is (= @args (list (:tags new-data))))))))
+
+(deftest test-set-tags-to-article
+    (let [id 9988
+          tags #{"tag-one" "two" "threee"}
+          do-get-tags #(get-tags-for-article {:id id})]
+      (is (= #{} (do-get-tags)))
+      (set-tags-to-article! id tags)
+      (is (= tags (do-get-tags)))))
+
+(deftest test-validate-article
+  (let [captured-ref-id (create-test-captured-reference!)
+        inexistant-captured-ref-id 9288
+        article-data (get-article-data)]
+    (assert (nil? (get-captured-reference inexistant-captured-ref-id)))
+    (testing "Inexistant captured ref"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           (re-pattern (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                        inexistant-captured-ref-id))
+           (validate-article (assoc article-data
+                                          :id-captured-reference
+                                          inexistant-captured-ref-id)))))))
+
+(deftest test-clear-article-tags!
+  (let [article-id 222 tags #{"abc" "def" "egh"}]
+    (doseq [t tags]
+      (jdbc/insert! *db* :articles_tags {:id_article article-id :id_tag t}))
+    (is (= (get-tags-for-article {:id article-id}) tags))
+    (clear-article-tags! article-id)
+    (is (= (get-tags-for-article {:id article-id}) #{}))))
+
 (deftest test-get-all-articles
   (clean-articles-and-tags)
   (let [captured-reference-id (create-test-captured-reference!)
@@ -114,26 +171,27 @@
         (is (= (:description db-data) (:description data)))
         (is (= (:action_link db-data) (:action-link data)))))
 
-    (testing "Reverts changes on failure"
-      ;; We can not test the transaction because we are already wrapped
-      ;; in another transaction (for test). So the best we can do is to
-      ;; be sure that all db/create-* were called with (with-db-transaction)
-      (let [used-args (atom {})]
-        (with-redefs [db/create-article-tag!
-                      #(swap! used-args assoc :create-article-tag! %&)
-                      db/create-article!
-                      #(swap! used-args assoc :create-article! %&)
-                      db/create-tag!
-                      #(swap! used-args assoc :create-tag! %&)]
-          (create-article! (get-article-data))
-          ;; Each create should have received 2 args (transaction + data)
-          ;; and the transaction should not have been the same as global *db*
-          (are [k] (and (= (count (k @used-args)) 2)
-                        (not= (first (k @used-args)) *db*))
-            :create-article!
-            :create-article-tag!
-            :create-tag!)))))
+    (testing "Calls create-missing-tags"
+      (let [args (atom nil)]
+        (with-redefs [create-missing-tags #(reset! args %&)]
+          (create-article! data))
+        (is (= @args (list (:tags data)))))))
+  
   (testing "Fails if captured-reference does not exists"
     (let [data (get-article-data {:id-captured-reference 291928173})]
       (assert (-> data :id-captured-reference get-captured-reference nil?))
       (is (thrown? clojure.lang.ExceptionInfo (create-article! data))))))
+
+(deftest test-tag-exists?
+  (let [tag "some-weeeeird-tag" do-tag-exists? #(tag-exists? tag)]
+    (is (false? (do-tag-exists?)))
+    (jdbc/insert! *db* :tags {:tag tag})
+    (is (true? (do-tag-exists?)))))
+
+(deftest test-create-missing-tags
+  (let [existant-tag "aaaa" new-tag "bbbb" tags [existant-tag new-tag]]
+    (jdbc/insert! *db* :tags {:tag existant-tag})
+    (assert (tag-exists? existant-tag))
+    (assert (not (tag-exists? new-tag)))
+    (create-missing-tags tags)
+    (is (every? tag-exists? tags))))

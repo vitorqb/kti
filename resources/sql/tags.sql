@@ -17,3 +17,6 @@ INSERT INTO tags (tag) VALUES (:tag)
 -- :name delete-all-tags :! :n
 -- :doc deletes all tags
 DELETE FROM tags
+
+-- :name tag-exists? :? :1
+SELECT 1 as resp FROM tags WHERE tag = :tag

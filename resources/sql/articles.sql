@@ -39,3 +39,13 @@ DELETE FROM articles
 -- :name delete-all-articles-tags :! :n
 -- :doc deletes all entries from articles-tags
 DELETE FROM articles_tags
+
+-- :name delete-article-tags :! :n
+DELETE FROM articles_tags WHERE id_article = :id
+
+-- :name update-article! :! :n
+UPDATE articles
+SET id_captured_reference = :id-captured-reference,
+    description = :description,
+    action_link = :action-link
+WHERE id = :id
