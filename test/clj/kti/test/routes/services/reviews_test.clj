@@ -55,9 +55,23 @@
             id (create-review! data)
             review (get-review id)]
         (is (= review (assoc data :id id)))))
+
     (testing "Error if invalid status"
       (let [data (get-review-data {:id-article article-id :status :invalid})]
         (is (thrown? AssertionError (create-review! data)))))
+
+    (testing "Uses validate-review-status"
+      (let [args (atom nil) data (get-review-data {:id-article article-id})]
+        (with-redefs [validate-review-status #(reset! args %&)]
+          (create-review! data)
+          (is (= @args (list (:status data)))))))
+
+    (testing "Uses validate-article"
+      (let [args (atom nil) data (get-review-data {:id-article article-id})]
+        (with-redefs [validate-id-article #(reset! args %&)]
+          (create-review! data)
+          (is (= @args (list article-id))))))
+
     (testing "Error is article does not exists"
       (with-redefs [article-exists? (fn [_] false)]
         (is (thrown? clojure.lang.ExceptionInfo
@@ -77,3 +91,45 @@
                                                    {:id-article id})))
                           articles-ids))]
     (is (= (get-all-reviews) (map get-review reviews-ids)))))
+
+
+(deftest test-validate-review-status
+  (is (thrown? AssertionError (validate-review-status :not-a-valid-status)))
+  (doseq [s review-status] (is (nil? (validate-review-status s)))))
+
+(deftest test-validate-id-article
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo
+       #"Article with id .+ does not exists"
+       (validate-id-article "not-a-valid-id")))
+  (let [captured-ref-id (create-test-captured-reference!)
+        article-id (create-article! (get-article-data
+                                     {:id-captured-reference captured-ref-id}))]
+    (is (nil? (validate-id-article article-id)))))
+
+(deftest test-update-review!
+  (let [captured-ref-id (create-test-captured-reference!)
+        article-id (create-article! (get-article-data
+                                     {:id-captured-ref captured-ref-id}))
+        review-id (create-review! (get-review-data {:id-article article-id}))
+        new-captured-ref-id (create-test-captured-reference!)
+        new-article-id (create-article! (get-article-data
+                                         {:id-captured-ref new-captured-ref-id}))
+        new-data {:id-article new-article-id
+                  :feedback-text "NNNewwww feedback"
+                  :status :completed}
+        validate-id-article-args (atom nil)
+        validate-review-status-args (atom nil)]
+    (with-redefs [validate-id-article #(reset! validate-id-article-args %&)
+                  validate-review-status #(reset! validate-review-status-args %&)]
+      (update-review! review-id new-data)
+
+      (testing "Uses validate-review-status"
+        (is (= @validate-review-status-args (list (:status new-data)))))
+
+      (testing "Uses validate-id-article"
+        (is (= @validate-id-article-args (list (:id-article new-data)))))
+
+      (testing "Updates values in the db"
+        (is (= (get-review review-id)
+               (assoc new-data :id review-id)))))))

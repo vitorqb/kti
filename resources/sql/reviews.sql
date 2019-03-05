@@ -11,3 +11,10 @@ SELECT id, id_article, feedback_text, status FROM reviews
 
 -- :name delete-all-reviews :!
 DELETE FROM reviews
+
+-- :name update-review! :!
+UPDATE reviews
+SET id_article = :id-article,
+    feedback_text = :feedback-text,
+    status = :status
+WHERE id = :id

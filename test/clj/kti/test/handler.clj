@@ -207,6 +207,38 @@
         (is (= (-> body (dissoc :id) (update :status keyword))
                data))))))
 
+(deftest test-put-reviews
+  (let [new-captured-reference-id (create-test-captured-reference!)
+        new-article-id (create-article!
+                        (get-article-data
+                         {:id-captured-reference new-captured-reference-id}))
+        new-data {:id-article new-article-id
+                  :feedback-text "new feedback text!!!"
+                  :status :discarded}]
+    (testing "Not found"
+      (let [inexistant-id 12928]
+        (assert (nil? (get-review inexistant-id)))
+        (is (not-found? (as-> inexistant-id it
+                          (str "/api/reviews/" it)
+                          (request :put it)
+                          (json-body it new-data)
+                          (app it)))))
+    (testing "Found")
+      (let [captured-reference-id (create-test-captured-reference!)
+            article-id (create-article! (get-article-data
+                                         {:id-captured-reference captured-reference-id}))
+            review-id (create-review! (get-review-data {:id-article article-id}))
+            response (as-> review-id it
+                       (str "/api/reviews/" it)
+                       (request :put it)
+                       (json-body it new-data)
+                       (app it))
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (ring-schema/coerce! Review body)
+               (get-review review-id)
+               (assoc new-data :id review-id)))))))
+
 (deftest test-get-reviews
   (db/delete-all-reviews)
   (let [captured-ref-id (create-test-captured-reference!)
