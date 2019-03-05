@@ -4,18 +4,30 @@
             [clojure.string :as str]))
 
 (def review-status #{:in-progress :completed :discarded})
+(defn validate-review-status [x] (assert (review-status x)))
+(defn validate-id-article [x]
+  (when-not (article-exists? x)
+    (throw (ex-info (format "Article with id %s does not exists" x)
+                    {:type :invalid-id-article}))))
+(def status->string (comp str/upper-case name))
+(def string->status (comp keyword str/lower-case))
 
 (defn create-review!
   "Creates a review"
   [{:keys [status id-article] :as data}]
-  (assert (contains? review-status status))
-  (if (not (article-exists? id-article))
-    (throw (ex-info (format "Article with id %s does not exists" id-article)
-                    {:type :invalid-id-article})))
+  (validate-review-status status)
+  (validate-id-article id-article)
   (-> data
-      (update :status (comp str/upper-case name))
+      (update :status status->string)
       db/create-review!
       (get (keyword "last_insert_rowid()"))))
+
+(defn update-review!
+  [id {:keys [status id-article] :as data}]
+  (validate-id-article id-article)
+  (validate-review-status status)
+  (-> data (assoc :id id) (update :status status->string) db/update-review!))
+
 
 (defn parse-review
   "Parses raw data for a review, retrieved from the db"
@@ -24,7 +36,7 @@
                   (case k
                     :id_article    [:id-article v]
                     :feedback_text [:feedback-text v]
-                    :status        [k (-> v str/lower-case keyword)]
+                    :status        [k (string->status v)]
                     [k v])))
         x))
 
