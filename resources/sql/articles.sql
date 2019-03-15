@@ -49,3 +49,6 @@ SET id_captured_reference = :id-captured-reference,
     description = :description,
     action_link = :action-link
 WHERE id = :id
+
+-- :name delete-article! :! :n
+DELETE FROM articles WHERE id = :id

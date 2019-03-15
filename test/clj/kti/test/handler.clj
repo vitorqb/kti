@@ -109,6 +109,19 @@
         (is (= (-> from-db :created-at date->str) (:created-at body)))
         (is (= (:reference body) (:reference from-db)))))))
 
+(deftest test-delete-captured-reference
+  (testing "base"
+    (let [id (create-test-captured-reference!)
+          url (str "/api/captured-references/" id)
+          response (app (request :delete url))]
+      (is (ok? response))
+      (is (empty-response? response))
+      (is (nil? (get-captured-reference id)))))
+  (testing "404"
+    (let [id 92839 url (str "/api/captured-references/" id)]
+      (assert (nil? (get-captured-reference id)))
+      (is (not-found? (app (request :delete url)))))))
+
 
 (deftest test-get-articles
   (clean-articles-and-tags)
@@ -161,6 +174,19 @@
     (is (= (:status response) 201))
     (is (integer? (:id body)))
     (is (= (-> body (dissoc :id) (update :tags set)) data))))
+
+(deftest test-delete-article
+  (testing "Base"
+    (let [captured-ref-id (create-test-captured-reference!)
+          id (create-article!
+              (get-article-data {:id-captured-reference captured-ref-id}))
+          response (app (request :delete (str "/api/articles/" id)))]
+      (is (ok? response))
+      (is (empty-response? response)))
+    (testing "404"
+      (let [id 92837]
+        (assert (nil? (get-article id)))
+        (is (not-found? (app (request :delete (str "/api/articles/" id)))))))))
 
 (deftest test-put-article
   (testing "put"
@@ -238,6 +264,22 @@
         (is (= (ring-schema/coerce! Review body)
                (get-review review-id)
                (assoc new-data :id review-id)))))))
+
+(deftest test-delete-review
+  (testing "Base"
+    (let [id (->> (create-test-captured-reference!)
+                  (hash-map :id-captured-reference)
+                  get-article-data
+                  create-article!
+                  (hash-map :id-article)
+                  get-review-data
+                  create-review!)          
+          response (app (request :delete (str "/api/reviews/" id)))]
+      (is (ok? response))
+      (is (nil? (get-review id)))))
+  (testing "404"
+    (let [id 2938]
+      (is (not-found? (app (request :delete (str "/api/reviews/" id))))))))
 
 (deftest test-get-reviews
   (db/delete-all-reviews)

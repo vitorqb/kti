@@ -133,3 +133,15 @@
       (testing "Updates values in the db"
         (is (= (get-review review-id)
                (assoc new-data :id review-id)))))))
+
+(deftest test-delete-review!
+  (let [id (->> (create-test-captured-reference!)
+                (hash-map :id-captured-reference)
+                get-article-data
+                create-article!
+                (hash-map :id-article)
+                get-review-data
+                create-review!)]
+    (is (not (nil? (get-review id))))
+    (delete-review! id)
+    (is (nil? (get-review id)))))

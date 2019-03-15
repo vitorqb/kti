@@ -133,3 +133,8 @@
   (let [id (create-test-captured-reference!)]
     (is (= (captured-reference-id-exists? id) id))))
 
+(deftest test-delete-captured-reference!
+  (testing "Base"
+    (let [id (create-test-captured-reference!)]
+      (delete-captured-reference! id)
+      (is (nil? (get-captured-reference id))))))

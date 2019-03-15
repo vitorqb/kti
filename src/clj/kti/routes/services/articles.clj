@@ -54,6 +54,11 @@
       (set-tags-to-article! id tags)
       (db/update-article! (assoc data :id id)))))
 
+(defn delete-article! [id]
+  ;; !!!! TODO -> validate no review depends on it
+  (db/delete-article-tags {:id id})
+  (db/delete-article! {:id id}))
+
 (defn article-exists?
   [id]
   (-> {:id id} db/article-exists? (get :resp)))

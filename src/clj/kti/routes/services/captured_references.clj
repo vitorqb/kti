@@ -34,6 +34,10 @@
      (db/update-captured-reference! con {:id id
                                          :reference reference}))))
 
+(defn delete-captured-reference! [id]
+  ;; !!!! TODO -> Validate no article depends on it.
+  (db/delete-captured-reference! {:id id}))
+
 (defn parse-retrieved-captured-reference
   [x]
   (into {} (map (fn [[k v]]
