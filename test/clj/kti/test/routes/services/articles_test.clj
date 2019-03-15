@@ -62,6 +62,19 @@
           (update-article! article-id new-data))
         (is (= @args (list (:tags new-data))))))))
 
+(deftest test-delete-article
+  (let [id (create-article!
+            (get-article-data
+             {:id-captured-reference (create-test-captured-reference!)}))
+        other ((comp get-article create-article! get-article-data)
+               {:id-captured-reference (create-test-captured-reference!)})]
+    (assert (not (nil? (get-article id))))
+    (assert (not (= #{} (get-tags-for-article {:id id}))))
+    (delete-article! id)
+    (is (nil? (get-article id)))
+    (is (= #{} (get-tags-for-article {:id id})))
+    (is (= other (get-article (:id other))))))
+
 (deftest test-set-tags-to-article
     (let [id 9988
           tags #{"tag-one" "two" "threee"}

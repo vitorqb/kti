@@ -2,12 +2,21 @@
   (:require [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.articles
              :refer [get-all-articles get-article create-article! update-article!
-                     article-exists?]]
+                     article-exists? delete-article!]]
             [kti.routes.services.reviews
-             :refer [create-review! get-review get-all-reviews update-review!]]
+             :refer [create-review! get-review get-all-reviews update-review!
+                     delete-review!]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
             [schema.core :as s]))
+
+;;
+;; Helpers
+;;
+(defmacro let-found? [binding & body]
+  `(if-let ~binding
+     (do ~@body)
+     (not-found)))
 
 ;;
 ;; Schemas
@@ -66,9 +75,8 @@
       (GET "/captured-references/:id" [id]
         :return       CapturedReference
         :summary      "Get for a captured reference."
-        (if-let [captured-reference (get-captured-reference id)]
-          (ok captured-reference)
-          (not-found)))
+        (let-found? [captured-reference (get-captured-reference id)]
+          (ok captured-reference)))
 
       (POST "/captured-references" []
         :return       CapturedReference
@@ -84,11 +92,15 @@
         :return       CapturedReference
         :body-params  [reference :- s/Str]
         :summary      "Put for a captured reference"
-        (if-let [captured-reference (get-captured-reference id)]
-          (do
-            (update-captured-reference! id {:reference reference})
-            (ok (get-captured-reference id)))
-          (not-found)))
+        (let-found? [captured-reference (get-captured-reference id)]
+          (update-captured-reference! id {:reference reference})
+          (ok (get-captured-reference id))))
+
+      (DELETE "/captured-references/:id" [id]
+        :summary "Deletes a captured reference"
+        (let-found? [captured-reference (get-captured-reference id)]
+          (delete-captured-reference! id)
+          (ok [])))
 
       (GET "/articles" []
         :return       [Article]
@@ -98,9 +110,7 @@
       (GET "/articles/:id" [id]
         :return  Article
         :summary "Get for a single article"
-        (if-let [article (get-article id)]
-          (ok article)
-          (not-found)))
+        (let-found? [article (get-article id)] (ok article)))
 
       (POST "/articles" []
         :return       Article
@@ -115,11 +125,16 @@
         :return  Article
         :body    [data ArticleInput]
         :summary "PUT for article"
-        (if (article-exists? id)
-          (do
-            (update-article! id data)
-            (ok (get-article id)))
-          (not-found)))
+        (let-found? [article (get-article id)]
+          (update-article! id data)
+          (ok (get-article id))))
+
+      (DELETE "/articles/:id" [id]
+        :return  []
+        :summary "Deletes an article"
+        (let-found? [article (get-article id)]
+          (delete-article! id)
+          (ok [])))
 
       (POST "/reviews" []
         :return        Review
@@ -132,11 +147,16 @@
         :return    Review
         :body      [data ReviewInput]
         :summary   "POST for review"
-        (if-not (nil? (get-review id))
-          (do
-            (update-review! id data)
-            (ok (get-review id)))
-          (not-found)))
+        (let-found? [_ (get-review id)]
+          (update-review! id data)
+          (ok (get-review id))))
+
+      (DELETE "/reviews/:id" [id]
+        :return  []
+        :summary "Deletes a review"
+        (let-found? [_ (get-review id)]
+          (delete-review! id)
+          (ok [])))
 
       (GET "/reviews" []
         :return        [Review]
@@ -146,6 +166,4 @@
       (GET "/reviews/:id" [id]
         :return        Review
         :summary       "GET for a single review"
-        (if-let [review (get-review id)]
-          (ok review)
-          (not-found))))))
+        (let-found? [review (get-review id)] (ok review))))))

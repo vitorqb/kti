@@ -18,3 +18,6 @@ SET id_article = :id-article,
     feedback_text = :feedback-text,
     status = :status
 WHERE id = :id
+
+-- :name delete-review! :!
+DELETE FROM reviews WHERE id = :id

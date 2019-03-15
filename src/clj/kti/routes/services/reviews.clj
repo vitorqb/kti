@@ -28,6 +28,7 @@
   (validate-review-status status)
   (-> data (assoc :id id) (update :status status->string) db/update-review!))
 
+(defn delete-review! [id] (db/delete-review! {:id id}))
 
 (defn parse-review
   "Parses raw data for a review, retrieved from the db"
