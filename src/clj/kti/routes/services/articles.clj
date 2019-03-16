@@ -19,6 +19,7 @@
 (defn set-tags-to-article! [id tags]
   (doseq [t tags] (db/create-article-tag! {:article-id id :tag t})))
 
+;; !!!! TODO -> use kti.validate
 (defn validate-article [{:keys [id-captured-reference]}]
   (when (nil? (get-captured-reference id-captured-reference))
     (throw (ex-info (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
@@ -34,6 +35,7 @@
 
 (defn create-article!
   [{:keys [tags id-captured-reference] :as data}]
+  ;; !!!! TODO -> Validate uniqueness of article for each captured reference
   (validate-article data)
     (with-db-transaction [t-conn *db*]
       (binding [*db* t-conn]
@@ -63,6 +65,7 @@
   [id]
   (-> {:id id} db/article-exists? (get :resp)))
 
+;; !!!! TODO -> use kti.validate
 (defn validate-tag [x]
   (cond
     (not (string? x))
@@ -90,6 +93,10 @@
 (defn get-article
   [id]
   (some-> (db/get-article {:id id}) parse-article-data))
+
+(defn get-article-for-captured-reference
+  [x]
+  (some-> (db/get-article-for-captured-reference x) parse-article-data))
 
 (defn parse-article-data [x]
   (-> x

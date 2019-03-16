@@ -35,6 +35,15 @@
       (is (= (get-article created-article-id)
              (assoc data :id created-article-id))))))
 
+(deftest test-get-article-for-captured-reference
+  (let [{:keys [id] :as captured-reference}
+        (get-captured-reference (create-test-captured-reference!))]
+    (is (nil? (get-article-for-captured-reference captured-reference)))
+    (let [article-id
+          (create-article! (get-article-data {:id-captured-reference id}))]
+      (is (= (get-article article-id)
+             (get-article-for-captured-reference captured-reference))))))
+
 (deftest test-update-article
   (let [captured-ref-id (create-test-captured-reference!)
         article-id (-> {:id-captured-reference captured-ref-id}

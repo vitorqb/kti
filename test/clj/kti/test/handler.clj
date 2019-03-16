@@ -9,7 +9,8 @@
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
-                     get-captured-reference]]
+                     get-captured-reference
+                     DELETE-ERR-MSG-ARTICLE-EXISTS]]
             [kti.routes.services.articles
              :refer [create-article! get-article]]
             [kti.routes.services.reviews
@@ -110,6 +111,7 @@
         (is (= (:reference body) (:reference from-db)))))))
 
 (deftest test-delete-captured-reference
+  (db/delete-all-articles)
   (testing "base"
     (let [id (create-test-captured-reference!)
           url (str "/api/captured-references/" id)
@@ -117,6 +119,14 @@
       (is (ok? response))
       (is (empty-response? response))
       (is (nil? (get-captured-reference id)))))
+  (testing "Error if article exists"
+    (let [id (create-test-captured-reference!)]
+      (create-article! (get-article-data {:id-captured-reference id}))
+      (let [response (app (request :delete (str "/api/captured-references/" id)))]
+        (is (= 400 (:status response)))
+        (let [body (-> response :body body->map)]
+          (is (= {:error-msg DELETE-ERR-MSG-ARTICLE-EXISTS}
+                 body))))))
   (testing "404"
     (let [id 92839 url (str "/api/captured-references/" id)]
       (assert (nil? (get-captured-reference id)))
