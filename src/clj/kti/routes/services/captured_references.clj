@@ -1,9 +1,14 @@
 (ns kti.routes.services.captured-references
   (:require [kti.db.core :as db :refer [*db*]]
             [java-time]
-            [kti.utils :as utils]))
+            [kti.utils :as utils]
+            [kti.validation :refer [validate]]))
 
 (declare parse-retrieved-captured-reference)
+
+(def DELETE-ERR-MSG-ARTICLE-EXISTS
+  (str  "Can not delete a captured reference used in an article."
+        " Delete the article first."))
 
 (defn create-captured-reference!
   ([x] (create-captured-reference! *db* x))
@@ -34,9 +39,19 @@
      (db/update-captured-reference! con {:id id
                                          :reference reference}))))
 
-(defn delete-captured-reference! [id]
-  ;; !!!! TODO -> Validate no article depends on it.
-  (db/delete-captured-reference! {:id id}))
+;; !!!! TODO -> Refactor to aovid cyclical import
+(defn make-validate-no-related-article [get-article-for-captured-reference]
+  (fn validate-no-related-article [x]
+    (if ((comp not nil?) (get-article-for-captured-reference x))
+      DELETE-ERR-MSG-ARTICLE-EXISTS)))
+
+(defn make-delete-captured-reference! [validate-no-related-article]
+  (fn delete-captured-reference! [id]
+    (if-let [error (validate (get-captured-reference id) validate-no-related-article)]
+      error
+      (do
+        (db/delete-captured-reference! {:id id})
+        nil))))
 
 (defn parse-retrieved-captured-reference
   [x]
@@ -54,6 +69,7 @@
 (def captured-reference-id-exists?
   (comp :res db/captured-reference-id-exists? (partial assoc {} :id)))
 
+;; !!!! TODO -> use kti.validate
 (defn validate-captured-reference-id [x]
   (cond
     (nil? x)

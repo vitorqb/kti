@@ -4,7 +4,8 @@
             [kti.utils :as utils]
             [luminus-migrations.core :as migrations]
             [kti.routes.services.captured-references :refer :all]
-            [kti.routes.services.articles :refer [create-article!]]
+            [kti.routes.services.articles
+             :refer [create-article! get-article get-article-for-captured-reference]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]
             [clojure.test :refer :all]
@@ -133,8 +134,28 @@
   (let [id (create-test-captured-reference!)]
     (is (= (captured-reference-id-exists? id) id))))
 
+(deftest test-validate-no-related-article
+  (let [captured-ref (get-captured-reference (create-test-captured-reference!))
+        validate-no-related-article
+        (make-validate-no-related-article get-article-for-captured-reference)]
+    ;; !!!! TODO -> Change to call-validation
+    (is (nil? (validate-no-related-article captured-ref)))
+    (create-article! (get-article-data {:id-captured-reference (:id captured-ref)}))
+    (is (= DELETE-ERR-MSG-ARTICLE-EXISTS
+           (validate-no-related-article captured-ref)))))
+
 (deftest test-delete-captured-reference!
-  (testing "Base"
-    (let [id (create-test-captured-reference!)]
-      (delete-captured-reference! id)
-      (is (nil? (get-captured-reference id))))))
+  (let [validate-no-related-article (make-validate-no-related-article
+                                     get-article-for-captured-reference)
+        delete-captured-reference! (make-delete-captured-reference!
+                                    validate-no-related-article)]
+    (testing "Base"
+      (let [id (create-test-captured-reference!)]
+        (delete-captured-reference! id)
+        (is (nil? (get-captured-reference id)))))
+
+    (testing "Validates with no-related-article"
+      (let [delete-captured-reference! (make-delete-captured-reference!
+                                        (constantly "foobar"))
+            {:keys [error-msg]} (delete-captured-reference! 1)]
+        (is (= error-msg "foobar"))))))

@@ -4,6 +4,7 @@
             [clojure.string :as str]))
 
 (def review-status #{:in-progress :completed :discarded})
+;; !!!! TODO -> use kti.validate
 (defn validate-review-status [x] (assert (review-status x)))
 (defn validate-id-article [x]
   (when-not (article-exists? x)

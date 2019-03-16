@@ -28,6 +28,7 @@
 
 (conman/bind-connection *db* "sql/tags.sql")
 (conman/bind-connection *db* "sql/articles.sql")
+;; !!!! TODO -> Abstract this (how?)
 
 (defn get-article
   ([] (get-article {}))
@@ -40,6 +41,10 @@
   ([params] (q-get-all-articles (assoc params :select (snip-select-article))))
   ([db params & rest]
    (apply q-get-all-articles (assoc params :select (snip-select-article) rest))))
+
+(defn get-article-for-captured-reference [params]
+  (q-get-article-for-captured-reference
+   (assoc params :select (snip-select-article))))
 
 (conman/bind-connection *db* "sql/reviews.sql")
 

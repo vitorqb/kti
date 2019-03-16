@@ -16,6 +16,9 @@ FROM articles a
 -- :name q-get-all-articles :? :*
 :snip:select
 
+-- :name q-get-article-for-captured-reference :? :1
+:snip:select WHERE id_captured_reference = :id
+
 -- :name count-articles :? :1
 -- :doc counts number of entries in articles table
 SELECT COUNT(*) FROM articles;
