@@ -11,7 +11,8 @@
                      delete-review!]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [clojure.core.match :refer [match]]))
 
 ;;
 ;; Helpers
@@ -120,18 +121,21 @@
         :return       Article
         :body         [article-data ArticleInput]
         :summary      "POST for article"
-        (let [id (create-article! article-data)]
-          (created
-           (str "/articles/" id)
-           (get-article id))))
+        (let [res (create-article! article-data)]
+          (match [res]
+            [{:error-msg _}] (bad-request res)
+            [id] (created
+                  (str "/articles/" id)
+                  (get-article id)))))
 
       (PUT "/articles/:id" [id]
         :return  Article
         :body    [data ArticleInput]
         :summary "PUT for article"
         (let-found? [article (get-article id)]
-          (update-article! id data)
-          (ok (get-article id))))
+          (if-let [error (update-article! id data)]
+            (bad-request error)
+            (ok (get-article id)))))
 
       (DELETE "/articles/:id" [id]
         :return  []

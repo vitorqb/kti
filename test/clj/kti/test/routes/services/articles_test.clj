@@ -13,7 +13,8 @@
                      fixture-start-app-and-env
                      fixture-bind-db-to-rollback-transaction
                      create-test-captured-reference!
-                     get-article-data]]
+                     get-article-data
+                     create-test-article!]]
             [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [mount.core :as mount]))
@@ -41,29 +42,24 @@
   (let [{:keys [id] :as captured-reference}
         (get-captured-reference (create-test-captured-reference!))]
     (is (nil? (get-article-for-captured-reference captured-reference)))
-    (let [article-id
-          (create-article! (get-article-data {:id-captured-reference id}))]
+    (let [article-id (create-test-article! :id-captured-reference id)]
       (is (= (get-article article-id)
              (get-article-for-captured-reference captured-reference))))))
 
 (deftest test-update-article
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (-> {:id-captured-reference captured-ref-id}
-                       get-article-data
-                       create-article!)
+  (let [article-id (create-test-article!)
         new-captured-ref-id (create-test-captured-reference!)
         new-data {:id-captured-reference new-captured-ref-id
                   :description "blabla"
                   :action-link "www.goo.nl"
                   :tags #{"11" "22" "33"}}]
 
-    (testing "validates with validate-article"
-      (with-redefs [validate-article (fn [& _] (throw (Exception. "err")))]
-        (is (thrown-with-msg? Exception #"err"
-                              (update-article! article-id new-data)))))
+    (testing "validates with validate-article-captured-reference-exists"
+      (with-redefs [validate-article-captured-reference-exists (constantly "err")]
+        (is (= {:error-msg "err"} (update-article! article-id new-data)))))
 
     (testing "base"
-      (update-article! article-id new-data)
+      (is (nil? (update-article! article-id new-data)))
       (is (= (assoc new-data :id article-id)
              (get-article article-id))))
 
@@ -74,11 +70,8 @@
         (is (= @args (list (:tags new-data))))))))
 
 (deftest test-delete-article
-  (let [id (create-article!
-            (get-article-data
-             {:id-captured-reference (create-test-captured-reference!)}))
-        other ((comp get-article create-article! get-article-data)
-               {:id-captured-reference (create-test-captured-reference!)})]
+  (let [id (create-test-article!)
+        other (get-article (create-test-article!))]
     (assert (not (nil? (get-article id))))
     (assert (not (= #{} (get-tags-for-article {:id id}))))
     (delete-article! id)
@@ -94,19 +87,17 @@
       (set-tags-to-article! id tags)
       (is (= tags (do-get-tags)))))
 
-(deftest test-validate-article
+(deftest test-validate-article-captured-reference-exists
   (let [captured-ref-id (create-test-captured-reference!)
         inexistant-captured-ref-id 9288
         article-data (get-article-data)]
     (assert (nil? (get-captured-reference inexistant-captured-ref-id)))
     (testing "Inexistant captured ref"
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           (re-pattern (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
-                        inexistant-captured-ref-id))
-           (validate-article (assoc article-data
-                                          :id-captured-reference
-                                          inexistant-captured-ref-id)))))))
+      (is (= (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+              inexistant-captured-ref-id)
+             (validate-article-captured-reference-exists (assoc article-data
+                                      :id-captured-reference
+                                      inexistant-captured-ref-id)))))))
 
 (deftest test-clear-article-tags!
   (let [article-id 222 tags #{"abc" "def" "egh"}]
@@ -202,9 +193,10 @@
         (is (= @args (list (:tags data)))))))
   
   (testing "Fails if captured-reference does not exists"
-    (let [data (get-article-data {:id-captured-reference 291928173})]
+    (let [data (get-article-data {:id-captured-reference 293})]
       (assert (-> data :id-captured-reference get-captured-reference nil?))
-      (is (thrown? clojure.lang.ExceptionInfo (create-article! data))))))
+      (is (= {:error-msg (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID 293)}
+             (create-article! data))))))
 
 (deftest test-tag-exists?
   (let [tag "some-weeeeird-tag" do-tag-exists? #(tag-exists? tag)]

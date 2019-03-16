@@ -7,6 +7,7 @@
             [kti.config :refer [env]]
             [kti.db.core :refer [*db*]]
             [kti.routes.services.captured-references :as service-captured-references]
+            [kti.routes.services.articles :refer [create-article!]]
             [mount.core :as mount]
             [clojure.java.jdbc :as jdbc]))
 
@@ -41,6 +42,20 @@
               (set-default :description "Search for git book.")
               (set-default :action-link "https://www.google.com/search?q=git+book")
               (set-default :tags #{"google"}))))
+
+(defn create-test-article! [& key-val]
+  (let [data (apply hash-map key-val)
+        keys [:id-captured-reference :description :action-link :tags]
+        get-default #(case %
+                       :id-captured-reference (create-test-captured-reference!)
+                       :description "Search for git book"
+                       :action-link "https://www.google.com/search?q=git+book"
+                       :tags #{"google"})
+        {:keys [error-msg] :as id}
+        (create-article!
+         (into {} (map (fn [k] [k (or (k data) (get-default k))]) keys)))]
+    (assert (nil? error-msg) (str "Failed to create article for test: " error-msg))
+    id))
 
 (defn get-captured-reference-data
   "Captured-reference data for testing"
