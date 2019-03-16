@@ -48,15 +48,3 @@
 (def CAPTURED_REFERENCE_ID_ERR_NIL "Captured reference id can not be nil.")
 (def CAPTURED_REFERENCE_ID_ERR_NOT_FOUND
   #(format "Captured reference with id %s was not found." %))
-
-(def captured-reference-id-exists?
-  (comp :res db/captured-reference-id-exists? (partial assoc {} :id)))
-
-;; !!!! TODO -> use kti.validate
-(defn validate-captured-reference-id [x]
-  (cond
-    (nil? x)
-    CAPTURED_REFERENCE_ID_ERR_NIL
-
-    (not (captured-reference-id-exists? x))
-    (CAPTURED_REFERENCE_ID_ERR_NOT_FOUND x)))
