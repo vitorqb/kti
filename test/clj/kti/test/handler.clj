@@ -9,8 +9,9 @@
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
-                     get-captured-reference
                      DELETE-ERR-MSG-ARTICLE-EXISTS]]
+            [kti.routes.services.captured-references.base
+             :refer [get-captured-reference]]
             [kti.routes.services.articles
              :refer [create-article! get-article]]
             [kti.routes.services.reviews

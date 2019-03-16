@@ -1,10 +1,12 @@
 (ns kti.routes.services.captured-references
-  (:require [kti.db.core :as db :refer [*db*]]
+  (:require [kti.routes.services.captured-references.base
+             :refer [parse-retrieved-captured-reference get-captured-reference]]
+            [kti.db.core :as db :refer [*db*]]
             [java-time]
             [kti.utils :as utils]
-            [kti.validation :refer [validate]]))
-
-(declare parse-retrieved-captured-reference)
+            [kti.validation :refer [validate]]
+            [kti.routes.services.articles.base
+             :refer [get-article-for-captured-reference]]))
 
 (def DELETE-ERR-MSG-ARTICLE-EXISTS
   (str  "Can not delete a captured reference used in an article."
@@ -20,13 +22,6 @@
          :created-at (or created-at (utils/now))})
        (get (keyword "last_insert_rowid()")))))
 
-(defn get-captured-reference
-  ([id] (get-captured-reference *db* id))
-
-  ([db-con id]
-   (some-> (db/get-captured-reference db-con {:id id})
-           (parse-retrieved-captured-reference))))
-
 (defn get-all-captured-references
   ([] (get-all-captured-references *db*))
   ([con]
@@ -39,28 +34,16 @@
      (db/update-captured-reference! con {:id id
                                          :reference reference}))))
 
-;; !!!! TODO -> Refactor to aovid cyclical import
-(defn make-validate-no-related-article [get-article-for-captured-reference]
-  (fn validate-no-related-article [x]
-    (if ((comp not nil?) (get-article-for-captured-reference x))
-      DELETE-ERR-MSG-ARTICLE-EXISTS)))
+(defn validate-no-related-article [x]
+  (if ((comp not nil?) (get-article-for-captured-reference x))
+    DELETE-ERR-MSG-ARTICLE-EXISTS))
 
-(defn make-delete-captured-reference! [validate-no-related-article]
-  (fn delete-captured-reference! [id]
-    (if-let [error (validate (get-captured-reference id) validate-no-related-article)]
-      error
-      (do
-        (db/delete-captured-reference! {:id id})
-        nil))))
-
-(defn parse-retrieved-captured-reference
-  [x]
-  (into {} (map (fn [[k v]]
-                  (case k
-                    :classified [k (utils/int-to-bool v)]
-                    :created_at [:created-at (utils/str->date v)]
-                    [k v]))
-                x)))
+(defn delete-captured-reference! [id]
+  (if-let [error (validate (get-captured-reference id) validate-no-related-article)]
+    error
+    (do
+      (db/delete-captured-reference! {:id id})
+      nil)))
 
 (def CAPTURED_REFERENCE_ID_ERR_NIL "Captured reference id can not be nil.")
 (def CAPTURED_REFERENCE_ID_ERR_NOT_FOUND

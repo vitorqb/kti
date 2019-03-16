@@ -1,9 +1,11 @@
 (ns kti.routes.services
   (:require [kti.routes.services.captured-references :refer :all]
+            [kti.routes.services.captured-references.base :refer :all]
             [kti.routes.services.articles
              :refer [get-all-articles get-article create-article! update-article!
-                     article-exists? delete-article!
-                     get-article-for-captured-reference]]
+                     article-exists? delete-article!]]
+            [kti.routes.services.articles.base
+             :refer [get-article-for-captured-reference]]
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews update-review!
                      delete-review!]]
@@ -100,13 +102,9 @@
       (DELETE "/captured-references/:id" [id]
         :summary "Deletes a captured reference"
         (let-found? [captured-reference (get-captured-reference id)]
-          (let [validate-no-related-article (make-validate-no-related-article
-                                             get-article-for-captured-reference)
-                delete-captured-reference! (make-delete-captured-reference!
-                                            validate-no-related-article)]
-            (if-let [err (delete-captured-reference! id)]
-              (bad-request err)
-              (ok [])))))
+          (if-let [err (delete-captured-reference! id)]
+            (bad-request err)
+            (ok []))))
 
       (GET "/articles" []
         :return       [Article]
