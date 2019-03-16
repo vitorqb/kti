@@ -32,8 +32,5 @@ UPDATE captured_references
 SET reference = :reference
 WHERE id = :id
 
--- :name captured-reference-id-exists? :? :1
-SELECT :id AS res FROM captured_references WHERE id = :id
-
 -- :name delete-captured-reference! :! :n
 DELETE FROM captured_references WHERE id = :id
