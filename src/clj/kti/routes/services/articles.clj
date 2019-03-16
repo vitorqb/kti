@@ -1,10 +1,11 @@
 (ns kti.routes.services.articles
-  (:require [kti.db.core :as db :refer [*db*]]
-            [kti.routes.services.captured-references :refer [get-captured-reference]]
-            [clojure.java.jdbc :refer [with-db-transaction]]
-            [clojure.string :as string]))
+  (:require [kti.routes.services.articles.base
+             :refer [parse-article-data get-article-for-captured-reference]]
+            [kti.db.core :as db :refer [*db*]]
+            [kti.routes.services.captured-references.base :refer [get-captured-reference]]
+            [clojure.java.jdbc :refer [with-db-transaction]]))
 
-(declare parse-article-data get-all-tags create-tag!)
+(declare get-all-tags create-tag!)
 
 (def MAX_TAG_LENGTH 49)
 (def MIN_TAG_LENGTH 2)
@@ -93,18 +94,6 @@
 (defn get-article
   [id]
   (some-> (db/get-article {:id id}) parse-article-data))
-
-(defn get-article-for-captured-reference
-  [x]
-  (some-> (db/get-article-for-captured-reference x) parse-article-data))
-
-(defn parse-article-data [x]
-  (-> x
-      (select-keys [:id :description :tags])
-      (assoc :action-link (:action_link x))
-      (assoc :id-captured-reference (:id_captured_reference x))
-      (update :tags #(and % (set (string/split % #" "))))
-      (update :tags #(or % #{}))))
 
 (defn get-tags-for-article [article]
   (->> (db/get-tags-for-article article) (map :id_tag) (into #{})))

@@ -2,10 +2,12 @@
   (:require [clojure.test :refer :all]
             [kti.utils :as utils]
             [kti.routes.services.articles :refer :all]
+            [kti.routes.services.articles.base :refer :all]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
-             :refer [create-captured-reference!
-                     get-captured-reference]]
+             :refer [create-captured-reference!]]
+            [kti.routes.services.captured-references.base
+             :refer [get-captured-reference]]
             [kti.test.helpers
              :refer [clean-articles-and-tags
                      fixture-start-app-and-env
