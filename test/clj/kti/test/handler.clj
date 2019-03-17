@@ -10,7 +10,8 @@
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
                      DELETE-ERR-MSG-ARTICLE-EXISTS
-                     validate-captured-ref-reference-min-length]]
+                     validate-captured-ref-reference-min-length
+                     ERR-MSG-REFERENCE-MIN-LENGTH]]
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
@@ -97,7 +98,15 @@
 
         (testing "Db was updated"
           (is (= (:reference (get-captured-reference id))
-                 (:reference new-data))))))))
+                 (:reference new-data))))))
+    (testing "Validation error for ref length"
+        (let [id (create-test-captured-reference!)
+              new-data {:reference "bar"}
+              response (with-redefs [validate-captured-ref-reference-min-length
+                                     (fn [&_] "foo")]
+                         (-> id make-request (json-body new-data) app))]
+          (is (= 400 (response :status)))
+          (is (= "foo" (-> response :body body->map :error-msg)))))))
 
 (deftest test-post-captured-reference
   (let [url "/api/captured-references"

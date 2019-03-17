@@ -19,17 +19,13 @@
   (when (-> reference count (< REFERENCE-MIN-LENGTH))
     ERR-MSG-REFERENCE-MIN-LENGTH))
 
-(defn create-captured-reference!
-  ([x] (create-captured-reference! *db* x))
-
-  ([db-con {:keys [reference created-at] :as data}]
-   (or
-    (validate data validate-captured-ref-reference-min-length)
-    (-> (db/create-captured-reference!
-         db-con
-         {:reference reference
-          :created-at (or created-at (utils/now))})
-        (get (keyword "last_insert_rowid()"))))))
+(defn create-captured-reference! [{:keys [reference created-at] :as data}]
+  (or
+   (validate data validate-captured-ref-reference-min-length)
+   (-> (db/create-captured-reference!
+        {:reference reference
+         :created-at (or created-at (utils/now))})
+       (get (keyword "last_insert_rowid()")))))
 
 (defn get-all-captured-references
   ([] (get-all-captured-references *db*))
@@ -37,12 +33,10 @@
    (map parse-retrieved-captured-reference (db/get-all-captured-references con {}))))  
 
 (defn update-captured-reference!
-  ;; !!!! TODO -> use validate-captured-ref-reference-min-length
-  ([id params] (update-captured-reference! *db* id params))
-  ([con id {:keys [reference] :as args}]
-   (when (not (= args {}))
-     (db/update-captured-reference! con {:id id
-                                         :reference reference}))))
+  [id args]
+  (or
+   (validate args validate-captured-ref-reference-min-length)
+   (do (db/update-captured-reference! (assoc args :id id)) nil)))
 
 (defn validate-no-related-article [x]
   (if ((comp not nil?) (get-article-for-captured-reference x))
