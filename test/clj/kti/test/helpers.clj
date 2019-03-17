@@ -2,6 +2,7 @@
   (:require [ring.mock.request :refer :all]
             [luminus-migrations.core :as migrations]
             [cheshire.core :as cheshire]
+            [kti.handler]
             [kti.db.core :as db]
             [kti.utils :as utils :refer [set-default]]
             [kti.config :refer [env]]

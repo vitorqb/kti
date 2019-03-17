@@ -9,6 +9,7 @@
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews update-review!
                      delete-review!]]
+            [kti.routes.services.tokens :refer [give-token!]]
             [kti.validation :refer [kti-error?]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
@@ -176,4 +177,11 @@
       (GET "/reviews/:id" [id]
         :return        Review
         :summary       "GET for a single review"
-        (let-found? [review (get-review id)] (ok review))))))
+        (let-found? [review (get-review id)] (ok review)))
+
+      (POST "/token" []
+        :body-params [email :- s/Str]
+        :summary     "Sends an email with a token for the user with this email."
+        (do
+          (give-token! email)
+          (no-content))))))

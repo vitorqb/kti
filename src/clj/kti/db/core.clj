@@ -48,6 +48,8 @@
 
 (conman/bind-connection *db* "sql/reviews.sql")
 
+(conman/bind-connection *db* "sql/tokens.sql")
+
 (extend-protocol jdbc/IResultSetReadColumn
   java.sql.Timestamp
   (result-set-read-column [v _2 _3]

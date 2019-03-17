@@ -18,11 +18,12 @@
 (deftest test-users
   (jdbc/with-db-transaction [t-conn *db*]
     (jdbc/db-set-rollback-only! t-conn)
-    (is (= 1 (db/create-user!
+    (is (= 1 ((keyword "last_insert_rowid()")
+              (db/create-user!
                t-conn
                {:id         "1"
-                :email      "sam.smith@example.com"})))
-    (is (= {:id         "1"
+                :email      "sam.smith@example.com"}))))
+    (is (= {:id         1
             :email      "sam.smith@example.com"
-            :admin      nil}
+            :admin      0}
            (db/get-user t-conn {:id "1"})))))

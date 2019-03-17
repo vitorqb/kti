@@ -1,5 +1,4 @@
-# Probably because of a bud, this file can't be empty
-script: echo '{:foo "bar"}' >test-config.edn && lein test
+script: echo '{:test true}' >test-config.edn && lein test
 env:
   global:
     - PORT=3000

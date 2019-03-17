@@ -1,8 +1,13 @@
 (ns kti.test.handler
   (:require [clojure.test :refer :all]
             [ring.mock.request :refer :all]
+            [kti.http :refer [send-email]]
             [kti.handler :refer :all]
             [kti.routes.services :refer [Review Article]]
+            [kti.routes.services.tokens
+             :refer [gen-token get-current-token-for-email give-token!]]
+            [kti.routes.services.users.base
+             :refer [get-user-by-email]]
             [kti.utils :refer :all]
             [kti.test.helpers :refer :all]
             [clojure.java.jdbc :as jdbc]
@@ -346,3 +351,28 @@
             body (-> response :body body->map)]
         (is (ok? response))
         (is (= (map #(ring-schema/coerce! Review %) body) [review]))))))
+
+
+(deftest test-post-token
+  (let [make-request #(-> (request :post "/api/token")
+                          (json-body {:email %})
+                          app)]
+    (testing "Base"
+      (let [send-email-args (atom []) token "1234567890" email "vitorqb@gmail.com"]
+        (with-redefs [send-email #(swap! send-email-args conj %&)
+                      gen-token (constantly token)]
+          (let [response (make-request email)]
+            (is (= 204 (:status response)))
+            (is (= @send-email-args [[email (str "Your token is: " token)]]))
+            (is (= (get-current-token-for-email email) token))))))
+    (testing "Creates new user if needed"
+      (let [email "a1234@bbcs.f"]
+        (is (nil? (get-user-by-email email)))
+        (with-redefs [send-email (constantly nil)]
+          (make-request email)
+          (is (= (:email (get-user-by-email email)) email)))))
+    (testing "Calls give-token!"
+      (let [email "a@b.com" give-token!-args (atom [])]
+        (with-redefs [give-token! #(swap! give-token!-args conj %&)]
+          (make-request email)
+          (is (= @give-token!-args [[email]])))))))
