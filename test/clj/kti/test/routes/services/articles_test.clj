@@ -4,6 +4,7 @@
             [kti.utils :as utils]
             [kti.routes.services.articles :refer :all]
             [kti.routes.services.articles.base :refer :all]
+            [kti.routes.services.reviews.base :refer [get-review-for-article]]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!]]
@@ -79,14 +80,19 @@
       (is (= nil (update-article! article-id (get-article article-id)))))))
 
 (deftest test-delete-article
-  (let [id (create-test-article!)
-        other (get-article (create-test-article!))]
-    (assert (not (nil? (get-article id))))
-    (assert (not (= #{} (get-tags-for-article {:id id}))))
-    (delete-article! id)
-    (is (nil? (get-article id)))
-    (is (= #{} (get-tags-for-article {:id id})))
-    (is (= other (get-article (:id other))))))
+  (testing "Base"
+    (let [id (create-test-article!)
+          other (get-article (create-test-article!))]
+      (assert (not (nil? (get-article id))))
+      (assert (not (= #{} (get-tags-for-article {:id id}))))
+      (is (nil? (delete-article! id)))
+      (is (nil? (get-article id)))
+      (is (= #{} (get-tags-for-article {:id id})))
+      (is (= other (get-article (:id other))))))
+  (testing "Validates with validate-article-has-no-review"
+    (with-redefs [validate-article-has-no-review (fn [&_] "bar")]
+      (is (= (delete-article! {:id 1})
+             (->KtiError "bar"))))))
 
 (deftest test-set-tags-to-article
     (let [id 9988
@@ -107,6 +113,12 @@
              (validate-article-captured-reference-exists (assoc article-data
                                       :id-captured-reference
                                       inexistant-captured-ref-id)))))))
+
+(deftest test-validate-article-has-no-review
+  (with-redefs [get-review-for-article (constantly nil)]
+    (is (= nil (validate-article-has-no-review {:id 1})))) 
+  (with-redefs [get-review-for-article (constantly {:id 2})]
+    (is (= ERR-MSG-ARTICLE-HAS-REVIEW (validate-article-has-no-review {:id 1})))))
 
 (deftest test-clear-article-tags!
   (let [article-id 222 tags #{"abc" "def" "egh"}]

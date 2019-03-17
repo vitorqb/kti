@@ -3,6 +3,7 @@
              :refer [parse-article-data get-article-for-captured-reference]]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references.base :refer [get-captured-reference]]
+            [kti.routes.services.reviews.base :refer [get-review-for-article]]
             [kti.validation :refer [validate]]
             [clojure.java.jdbc :refer [with-db-transaction]]))
 
@@ -17,6 +18,7 @@
   #(format "There is no captured reference with id '%s'" %))
 (def ERR-MSG-DUPLICATED-CAPTURED-REFERENCE
   #(str "An article already exists for captured reference with id" %))
+(def ERR-MSG-ARTICLE-HAS-REVIEW "Article has a review associated with it.")
 
 (defn clear-article-tags! [id] (db/delete-article-tags {:id id}))
 
@@ -30,6 +32,9 @@
 (defn validate-unique-captured-reference [x]
   (when (get-article-for-captured-reference {:id (x :id-captured-reference)})
     (ERR-MSG-DUPLICATED-CAPTURED-REFERENCE (x :id-captured-reference))))
+
+(defn validate-article-has-no-review [x]
+  (when (get-review-for-article x) ERR-MSG-ARTICLE-HAS-REVIEW))
 
 (defn tag-exists? [x] (-> (db/tag-exists? {:tag x}) :resp (= 1)))
 
@@ -70,9 +75,12 @@
          nil)))))
 
 (defn delete-article! [id]
-  ;; !!!! TODO -> validate no review depends on it
-  (db/delete-article-tags {:id id})
-  (db/delete-article! {:id id}))
+  (or
+   (validate (get-article id) validate-article-has-no-review)
+   (do 
+     (db/delete-article-tags {:id id})
+     (db/delete-article! {:id id})
+     nil)))
 
 (defn article-exists?
   [id]

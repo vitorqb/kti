@@ -16,7 +16,8 @@
              :refer [get-captured-reference]]
             [kti.routes.services.articles
              :refer [create-article! get-article
-                     ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID]]
+                     ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                     ERR-MSG-ARTICLE-HAS-REVIEW]]
             [kti.routes.services.reviews
              :refer [create-review! get-review]]
             [kti.utils :as utils]
@@ -212,15 +213,24 @@
                               unkown-captured-ref-id)})))))))
 
 (deftest test-delete-article
-  (testing "Base"
-    (let [id (create-test-article!)
-          response (app (request :delete (str "/api/articles/" id)))]
-      (is (ok? response))
-      (is (empty-response? response)))
-    (testing "404"
-      (let [id 92837]
-        (assert (nil? (get-article id)))
-        (is (not-found? (app (request :delete (str "/api/articles/" id)))))))))
+  (letfn [(run-request [id] (app (request :delete (str "/api/articles/" id))))]
+    (testing "Base"
+      (let [id (create-test-article!)
+            response (run-request id)]
+        (is (ok? response))
+        (is (empty-response? response)))
+      (testing "404"
+        (let [id 92837]
+          (assert (nil? (get-article id)))
+          (is (not-found? (run-request id)))))
+      (testing "400"
+        (testing "Has review"
+          (let [id-article (create-test-article!)
+                id-review (create-review! (get-review-data {:id-article id-article}))
+                response (run-request id-review)]
+            (is (= 400 (response :status)))
+            (is (= ERR-MSG-ARTICLE-HAS-REVIEW
+                   (-> response :body body->map :error-msg)))))))))
 
 (deftest test-put-article
   (testing "put"
@@ -305,17 +315,18 @@
                (assoc new-data :id review-id)))))))
 
 (deftest test-delete-review
-  (testing "Base"
-    (let [id (->> (create-test-article!)
-                  (hash-map :id-article)
-                  get-review-data
-                  create-review!)          
-          response (app (request :delete (str "/api/reviews/" id)))]
-      (is (ok? response))
-      (is (nil? (get-review id)))))
-  (testing "404"
-    (let [id 2938]
-      (is (not-found? (app (request :delete (str "/api/reviews/" id))))))))
+  (let [run-request #(app (request :delete (str "/api/reviews/" %)))]
+    (testing "Base"
+      (let [id (->> (create-test-article!)
+                    (hash-map :id-article)
+                    get-review-data
+                    create-review!)          
+            response (run-request id)]
+        (is (ok? response))
+        (is (nil? (get-review id)))))
+    (testing "404"
+      (let [id 2938]
+        (is (not-found? (app (request :delete (str "/api/reviews/" id)))))))))
 
 (deftest test-get-reviews
   (db/delete-all-reviews)
