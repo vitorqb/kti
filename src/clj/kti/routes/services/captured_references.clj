@@ -37,6 +37,7 @@
    (map parse-retrieved-captured-reference (db/get-all-captured-references con {}))))  
 
 (defn update-captured-reference!
+  ;; !!!! TODO -> use validate-captured-ref-reference-min-length
   ([id params] (update-captured-reference! *db* id params))
   ([con id {:keys [reference] :as args}]
    (when (not (= args {}))

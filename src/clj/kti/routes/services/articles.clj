@@ -6,7 +6,7 @@
             [kti.validation :refer [validate]]
             [clojure.java.jdbc :refer [with-db-transaction]]))
 
-(declare get-all-tags create-tag!)
+(declare get-all-tags create-tag! get-article)
 
 (def MAX_TAG_LENGTH 49)
 (def MIN_TAG_LENGTH 2)
@@ -15,6 +15,8 @@
 (def TAG_ERR_TOO_SHORT "Tag is too short")
 (def ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
   #(format "There is no captured reference with id '%s'" %))
+(def ERR-MSG-DUPLICATED-CAPTURED-REFERENCE
+  #(str "An article already exists for captured reference with id" %))
 
 (defn clear-article-tags! [id] (db/delete-article-tags {:id id}))
 
@@ -25,6 +27,10 @@
   (when (nil? (get-captured-reference id-captured-reference))
     (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID id-captured-reference)))
 
+(defn validate-unique-captured-reference [x]
+  (when (get-article-for-captured-reference {:id (x :id-captured-reference)})
+    (ERR-MSG-DUPLICATED-CAPTURED-REFERENCE (x :id-captured-reference))))
+
 (defn tag-exists? [x] (-> (db/tag-exists? {:tag x}) :resp (= 1)))
 
 (defn create-missing-tags [tags]
@@ -34,9 +40,10 @@
 
 (defn create-article!
   [{:keys [tags id-captured-reference] :as data}]
-  ;; !!!! TODO -> Validate uniqueness of article for each captured reference
   (or
-   (validate data validate-article-captured-reference-exists)
+   (validate data
+     validate-article-captured-reference-exists
+     validate-unique-captured-reference)
    (with-db-transaction [t-conn *db*]
      (binding [*db* t-conn]
        (create-missing-tags tags)
@@ -47,16 +54,20 @@
          article-id)))))
 
 (defn update-article!
-  [id {:keys [tags] :as data}]
-  (or
-   (validate data validate-article-captured-reference-exists)
-   (with-db-transaction [t-conn *db*]
-     (binding [*db* t-conn]
-       (create-missing-tags tags)
-       (clear-article-tags! id)
-       (set-tags-to-article! id tags)
-       (db/update-article! (assoc data :id id))
-       nil))))
+  [id {:keys [tags id-captured-reference] :as data}]
+  (let [article (get-article id)]
+    (or
+     (validate data
+       validate-article-captured-reference-exists
+       #(when (not= id-captured-reference (article :id-captured-reference))
+          (validate-unique-captured-reference %)))
+     (with-db-transaction [t-conn *db*]
+       (binding [*db* t-conn]
+         (create-missing-tags tags)
+         (clear-article-tags! id)
+         (set-tags-to-article! id tags)
+         (db/update-article! (assoc data :id id))
+         nil)))))
 
 (defn delete-article! [id]
   ;; !!!! TODO -> validate no review depends on it
