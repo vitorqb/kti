@@ -1,5 +1,7 @@
 (ns kti.validation)
 
+(defrecord KtiError [error-msg])
+
 (defn validate
   "Runs all funs as validation functions.
   Returns nil on validation success and {:error-message ...} on error.
@@ -13,4 +15,6 @@
             result (f-head arg)]
         (if (nil? result)
           (recur f-tail)
-          {:error-msg result})))))
+          (->KtiError result))))))
+
+(defn kti-error? [x] (instance? KtiError x))

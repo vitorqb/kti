@@ -12,6 +12,7 @@
   (str  "Can not delete a captured reference used in an article."
         " Delete the article first."))
 
+;; !!!! TODO -> Validate min length for reference
 (defn create-captured-reference!
   ([x] (create-captured-reference! *db* x))
 
@@ -39,11 +40,11 @@
     DELETE-ERR-MSG-ARTICLE-EXISTS))
 
 (defn delete-captured-reference! [id]
-  (if-let [error (validate (get-captured-reference id) validate-no-related-article)]
-    error
-    (do
-      (db/delete-captured-reference! {:id id})
-      nil)))
+  (or
+   (validate (get-captured-reference id) validate-no-related-article)
+   (do
+     (db/delete-captured-reference! {:id id})
+     nil)))
 
 (def CAPTURED_REFERENCE_ID_ERR_NIL "Captured reference id can not be nil.")
 (def CAPTURED_REFERENCE_ID_ERR_NOT_FOUND

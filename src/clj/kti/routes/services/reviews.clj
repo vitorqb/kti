@@ -13,6 +13,7 @@
 (def status->string (comp str/upper-case name))
 (def string->status (comp keyword str/lower-case))
 
+;; !!!! TODO -> use validation framework.
 (defn create-review!
   "Creates a review"
   [{:keys [status id-article] :as data}]
@@ -23,6 +24,7 @@
       db/create-review!
       (get (keyword "last_insert_rowid()"))))
 
+;; !!!! TODO -> use validation framework.
 (defn update-review!
   [id {:keys [status id-article] :as data}]
   (validate-id-article id-article)

@@ -82,6 +82,7 @@
 (defn create-tag!
   ([tag] (create-tag! *db* tag)) 
   ([db tag]
+   ;; !!!! TODO -> Use validation framework
    (when-let [err (validate-tag tag)]
      (throw (ex-info err {:type :tag-validation-exception})))
    (db/create-tag! db {:tag tag})))
