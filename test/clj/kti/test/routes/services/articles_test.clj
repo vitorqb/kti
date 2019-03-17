@@ -1,6 +1,6 @@
 (ns kti.test.routes.services.articles-test
   (:require [clojure.test :refer :all]
-            [kti.validation :refer (->KtiError)]
+            [kti.validation :refer [->KtiError validate]]
             [kti.utils :as utils]
             [kti.routes.services.articles :refer :all]
             [kti.routes.services.articles.base :refer :all]
@@ -68,7 +68,15 @@
       (let [args (atom nil)]
         (with-redefs [create-missing-tags #(reset! args %&)]
           (update-article! article-id new-data))
-        (is (= @args (list (:tags new-data))))))))
+        (is (= @args (list (:tags new-data))))))
+
+    (testing "Validates unique captured ref"
+      (with-redefs [validate-unique-captured-reference (fn [&_] "bar")]
+        (is (= (update-article! article-id (get-article-data))
+               (->KtiError "bar")))))
+
+    (testing "Updating to the same values is okay"
+      (is (= nil (update-article! article-id (get-article article-id)))))))
 
 (deftest test-delete-article
   (let [id (create-test-article!)
@@ -110,9 +118,9 @@
 
 (deftest test-get-all-articles
   (clean-articles-and-tags)
-  (let [captured-reference-id (create-test-captured-reference!)
-        data [(get-article-data {:id-captured-reference captured-reference-id})
-              {:id-captured-reference captured-reference-id
+  (let [data [(get-article-data
+               {:id-captured-reference (create-test-captured-reference!)})
+              {:id-captured-reference (create-test-captured-reference!)
                :description "Search for git book."
                :action-link "https://www.google.com/search?q=git+book"
                :tags #{}}]
@@ -188,16 +196,25 @@
         (is (= (:action_link db-data) (:action-link data)))))
 
     (testing "Calls create-missing-tags"
-      (let [args (atom nil)]
-        (with-redefs [create-missing-tags #(reset! args %&)]
-          (create-article! data))
-        (is (= @args (list (:tags data)))))))
+      (let [args (atom nil) tags #{"foo" "bar"}]
+        (with-redefs [create-missing-tags #(reset! args %&)
+                      validate (constantly nil)]
+          (create-article! (get-article-data {:tags tags})))
+        (is (= @args (list tags))))))
   
   (testing "Fails if captured-reference does not exists"
     (let [data (get-article-data {:id-captured-reference 293})]
       (assert (-> data :id-captured-reference get-captured-reference nil?))
       (is (= (->KtiError (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID 293))
-             (create-article! data))))))
+             (create-article! data)))))
+
+  (testing "Fails if duplicated article for same captured-ref"
+    (let [id-captured-reference (create-test-captured-reference!)]
+      (with-redefs [validate-unique-captured-reference (fn [&_] "foo")]
+        (is (= (->KtiError "foo")
+               (-> {:id-captured-reference id-captured-reference}
+                   get-article-data
+                   create-article!)))))))
 
 (deftest test-tag-exists?
   (let [tag "some-weeeeird-tag" do-tag-exists? #(tag-exists? tag)]
@@ -212,3 +229,15 @@
     (assert (not (tag-exists? new-tag)))
     (create-missing-tags tags)
     (is (every? tag-exists? tags))))
+
+(deftest test-validate-unique-captured-reference
+  (let [{:keys [id-captured-reference] :as article}
+        (get-article (create-test-article!))]
+    (assert ((comp not nil?) (get-article-for-captured-reference article)))
+    (is (= (validate-unique-captured-reference
+            {:id-captured-reference id-captured-reference})
+           (ERR-MSG-DUPLICATED-CAPTURED-REFERENCE id-captured-reference))))
+  (let [unused-id 999]
+    (assert (nil? (get-article-for-captured-reference {:id unused-id})))
+    (is (nil? (validate-unique-captured-reference
+               {:id-captured-reference unused-id})))))
