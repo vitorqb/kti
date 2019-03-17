@@ -115,18 +115,18 @@
       (is (true? (-> data :id get-captured-reference :classified))))))
 
 (deftest test-update-captured-reference!
-  (testing "Empty map"
-    (let [id (create-captured-reference! (get-captured-reference-data))
-          original-captured-reference (get-captured-reference id)]
-      (update-captured-reference! id {})
-      (is (= (get-captured-reference id) original-captured-reference))))
   (testing "Updating reference"
     (let [id (create-captured-reference! (get-captured-reference-data))
           original-captured-reference (get-captured-reference id)
           new-reference "new reference!"]
-      (update-captured-reference! id {:reference new-reference})
+      (is (= (update-captured-reference! id {:reference new-reference})
+             nil))
       (is (= (get-captured-reference id)
-             (assoc original-captured-reference :reference new-reference))))))
+             (assoc original-captured-reference :reference new-reference)))))
+  (testing "Validates with min length"
+    (with-redefs [validate-captured-ref-reference-min-length (fn [&_] "foo")]
+      (is (= (update-captured-reference! (create-test-captured-reference!) {})
+             (->KtiError "foo"))))))
 
 (deftest test-validate-no-related-article
   (let [captured-ref (get-captured-reference (create-test-captured-reference!))]

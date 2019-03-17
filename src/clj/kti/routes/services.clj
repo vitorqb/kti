@@ -99,8 +99,9 @@
         :body-params  [reference :- s/Str]
         :summary      "Put for a captured reference"
         (let-found? [captured-reference (get-captured-reference id)]
-          (update-captured-reference! id {:reference reference})
-          (ok (get-captured-reference id))))
+          (if-let [err (update-captured-reference! id {:reference reference})]
+            (bad-request err)
+            (ok (get-captured-reference id)))))
 
       (DELETE "/captured-references/:id" [id]
         :summary "Deletes a captured reference"
