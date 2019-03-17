@@ -6,7 +6,7 @@
             [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.captured-references.base
              :refer [parse-retrieved-captured-reference get-captured-reference]]
-            [kti.routes.services.articles :refer [create-article! get-article]]
+            [kti.routes.services.articles :refer [get-article]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]
             [clojure.test :refer :all]
@@ -106,7 +106,7 @@
   (testing "Classified is True after an article is created"
     (let [data (-> (create-test-captured-reference!) get-captured-reference)]
       (is (false? (:classified data)))
-      (create-article! (get-article-data {:id-captured-reference (:id data)}))
+      (create-test-article! :id-captured-reference (:id data))
       (is (true? (-> data :id get-captured-reference :classified))))))
 
 (deftest test-update-captured-reference!
@@ -126,7 +126,7 @@
 (deftest test-validate-no-related-article
   (let [captured-ref (get-captured-reference (create-test-captured-reference!))]
     (is (nil? (validate-no-related-article captured-ref)))
-    (create-article! (get-article-data {:id-captured-reference (:id captured-ref)}))
+    (create-test-article! :id-captured-reference (:id captured-ref))
     (is (= DELETE-ERR-MSG-ARTICLE-EXISTS
            (validate-no-related-article captured-ref)))))
 

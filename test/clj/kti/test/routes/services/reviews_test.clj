@@ -2,8 +2,7 @@
   (:require [clojure.test :refer :all]
             [kti.routes.services.reviews :refer :all]
             [kti.test.helpers :refer :all]
-            [kti.routes.services.articles :refer [create-article!]]
-            [kti.routes.services.articles :refer [article-exists?]]
+            [kti.routes.services.articles :refer [article-exists? create-article!]]
             [kti.db.core :refer [*db*] :as db]
             [clojure.java.jdbc :refer [insert!]]))
 
@@ -47,9 +46,7 @@
              :discarded)))))
 
 (deftest test-create-review!
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (create-article! (get-article-data
-                                     {:id-captured-reference captured-ref-id}))]
+  (let [article-id (create-test-article!)]
     (testing "Base"
       (let [data (get-review-data {:id-article article-id})
             id (create-review! data)
@@ -66,7 +63,7 @@
           (create-review! data)
           (is (= @args (list (:status data)))))))
 
-    (testing "Uses validate-article"
+    (testing "Uses validate-article-captured-reference-exists"
       (let [args (atom nil) data (get-review-data {:id-article article-id})]
         (with-redefs [validate-id-article #(reset! args %&)]
           (create-review! data)
@@ -79,13 +76,8 @@
 
 (deftest test-get-all-reviews
   (db/delete-all-reviews)
-  (let [captured-refs-ids [(create-test-captured-reference!)
-                           (create-test-captured-reference!)]
-        articles-ids (doall
-                      (map (fn [id]
-                             (create-article! (get-article-data
-                                               {:id-captured-reference id})))
-                           captured-refs-ids))
+  (let [articles-ids (doall (map (fn [_] (create-test-article!))
+                                 [1 2 3 4 5]))
         reviews-ids (doall (map (fn [id]
                                   (create-review! (get-review-data
                                                    {:id-article id})))
@@ -102,19 +94,14 @@
        clojure.lang.ExceptionInfo
        #"Article with id .+ does not exists"
        (validate-id-article "not-a-valid-id")))
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (create-article! (get-article-data
-                                     {:id-captured-reference captured-ref-id}))]
+  (let [article-id (create-test-article!)]
     (is (nil? (validate-id-article article-id)))))
 
 (deftest test-update-review!
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (create-article! (get-article-data
-                                     {:id-captured-ref captured-ref-id}))
+  (let [article-id (create-test-article!)
         review-id (create-review! (get-review-data {:id-article article-id}))
         new-captured-ref-id (create-test-captured-reference!)
-        new-article-id (create-article! (get-article-data
-                                         {:id-captured-ref new-captured-ref-id}))
+        new-article-id (create-test-article!)
         new-data {:id-article new-article-id
                   :feedback-text "NNNewwww feedback"
                   :status :completed}

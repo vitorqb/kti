@@ -13,7 +13,8 @@
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
-             :refer [create-article! get-article]]
+             :refer [create-article! get-article
+                     ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID]]
             [kti.routes.services.reviews
              :refer [create-review! get-review]]
             [kti.utils :as utils]
@@ -122,7 +123,7 @@
       (is (nil? (get-captured-reference id)))))
   (testing "Error if article exists"
     (let [id (create-test-captured-reference!)]
-      (create-article! (get-article-data {:id-captured-reference id}))
+      (create-test-article! :id-captured-reference id)
       (let [response (app (request :delete (str "/api/captured-references/" id)))]
         (is (= 400 (:status response)))
         (let [body (-> response :body body->map)]
@@ -163,11 +164,7 @@
                (assoc (second articles-data) :id (second articles-ids))))))))
 
 (deftest test-get-article
-  (let [captured-ref-id (create-test-captured-reference!)
-        article (-> {:id-captured-reference captured-ref-id}
-                    get-article-data
-                    create-article!
-                    get-article)
+  (let [article (get-article (create-test-article!))
         response (app (request :get (str "/api/articles/" (:id article))))
         body (-> response :body body->map)]
     (is (ok? response))
@@ -177,20 +174,31 @@
 (deftest test-post-article
   (clean-articles-and-tags)
   (let [captured-ref-id (create-test-captured-reference!)
-        data (get-article-data {:id-captured-reference captured-ref-id})
-        response (-> (request :post "/api/articles")
-                     (json-body data)
-                     (app))
-        body (-> response :body body->map)]
-    (is (= (:status response) 201))
-    (is (integer? (:id body)))
-    (is (= (-> body (dissoc :id) (update :tags set)) data))))
+        data (get-article-data {:id-captured-reference captured-ref-id})]
+    (testing "Base"
+      (let [response (-> (request :post "/api/articles")
+                         (json-body data)
+                         (app))
+            body (-> response :body body->map)]
+        (is (= (:status response) 201))
+        (is (integer? (:id body)))
+        (is (= (-> body (dissoc :id) (update :tags set)) data))))
+    (testing "400"
+      (let [unkown-captured-ref-id 999]
+        (assert (nil? (get-captured-reference unkown-captured-ref-id)))
+        (let [wrong-data
+              (assoc data :id-captured-reference unkown-captured-ref-id)
+              response (-> (request :post "/api/articles")
+                           (json-body wrong-data)
+                           (app))]
+          (is (= (response :status) 400))
+          (is (= (-> response :body body->map)
+                 {:error-msg (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                              unkown-captured-ref-id)})))))))
 
 (deftest test-delete-article
   (testing "Base"
-    (let [captured-ref-id (create-test-captured-reference!)
-          id (create-article!
-              (get-article-data {:id-captured-reference captured-ref-id}))
+    (let [id (create-test-article!)
           response (app (request :delete (str "/api/articles/" id)))]
       (is (ok? response))
       (is (empty-response? response)))
@@ -203,10 +211,9 @@
   (testing "put"
     (let [captured-ref-id (create-test-captured-reference!)
           new-captured-ref-id (create-test-captured-reference!)
-          article (-> {:id-captured-reference captured-ref-id}
-                      get-article-data
-                      create-article!
-                      get-article)
+          {id :id :as article} (get-article (create-test-article!
+                                             :id-captured-reference
+                                             captured-ref-id))
           new-data {:id-captured-reference new-captured-ref-id
                     :description "new description"
                     :action-link nil
@@ -220,6 +227,17 @@
           body (-> response :body body->map)]
       (is (= (ring-schema/coerce! Article body)
              (assoc new-data :id (:id article))))
+      (testing "error"
+        (let [invalid-captured-reference-id 98765
+              response (app (-> (request :put (str "/api/articles/" id))
+                                (json-body
+                                 (assoc new-data
+                                        :id-captured-reference
+                                        invalid-captured-reference-id))))]
+          (assert (nil? (get-captured-reference invalid-captured-reference-id)))
+          (is (= (response :status) 400))
+          (is (= (-> response :body body->map :error-msg)
+                 (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID 98765)))))
       (testing "not found"
         (let [id 829]
           (is (nil? (get-article id)))
@@ -230,9 +248,7 @@
                             (app it)))))))))
 
 (deftest test-post-reviews
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (create-article! (get-article-data
-                                     {:id-captured-reference captured-ref-id}))]
+  (let [article-id (create-test-article!)]
     (testing "Post data (base)"
       (let [data (get-review-data {:id-article article-id})
             response (-> (request :post "/api/reviews")
@@ -246,9 +262,7 @@
 
 (deftest test-put-reviews
   (let [new-captured-reference-id (create-test-captured-reference!)
-        new-article-id (create-article!
-                        (get-article-data
-                         {:id-captured-reference new-captured-reference-id}))
+        new-article-id (create-test-article!)
         new-data {:id-article new-article-id
                   :feedback-text "new feedback text!!!"
                   :status :discarded}]
@@ -262,8 +276,7 @@
                           (app it)))))
     (testing "Found")
       (let [captured-reference-id (create-test-captured-reference!)
-            article-id (create-article! (get-article-data
-                                         {:id-captured-reference captured-reference-id}))
+            article-id (create-test-article!)
             review-id (create-review! (get-review-data {:id-article article-id}))
             response (as-> review-id it
                        (str "/api/reviews/" it)
@@ -278,10 +291,7 @@
 
 (deftest test-delete-review
   (testing "Base"
-    (let [id (->> (create-test-captured-reference!)
-                  (hash-map :id-captured-reference)
-                  get-article-data
-                  create-article!
+    (let [id (->> (create-test-article!)
                   (hash-map :id-article)
                   get-review-data
                   create-review!)          
@@ -294,9 +304,7 @@
 
 (deftest test-get-reviews
   (db/delete-all-reviews)
-  (let [captured-ref-id (create-test-captured-reference!)
-        article-id (create-article! (get-article-data
-                                     {:id-captured-reference captured-ref-id}))
+  (let [article-id (create-test-article!)
         review (-> {:id-article article-id}
                    get-review-data
                    create-review!

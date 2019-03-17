@@ -3,6 +3,7 @@
              :refer [parse-article-data get-article-for-captured-reference]]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references.base :refer [get-captured-reference]]
+            [kti.validation :refer [validate]]
             [clojure.java.jdbc :refer [with-db-transaction]]))
 
 (declare get-all-tags create-tag!)
@@ -13,19 +14,16 @@
 (def TAG_ERR_TOO_LONG "Tag is too long.")
 (def TAG_ERR_TOO_SHORT "Tag is too short")
 (def ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
-  #(format "There is no id with captured reference '%s'" %))
+  #(format "There is no captured reference with id '%s'" %))
 
 (defn clear-article-tags! [id] (db/delete-article-tags {:id id}))
 
 (defn set-tags-to-article! [id tags]
   (doseq [t tags] (db/create-article-tag! {:article-id id :tag t})))
 
-;; !!!! TODO -> use kti.validate
-(defn validate-article [{:keys [id-captured-reference]}]
+(defn validate-article-captured-reference-exists [{:keys [id-captured-reference]}]
   (when (nil? (get-captured-reference id-captured-reference))
-    (throw (ex-info (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
-                     id-captured-reference)
-                    {:type :invalid-captured-reference-id}))))
+    (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID id-captured-reference)))
 
 (defn tag-exists? [x] (-> (db/tag-exists? {:tag x}) :resp (= 1)))
 
@@ -37,25 +35,28 @@
 (defn create-article!
   [{:keys [tags id-captured-reference] :as data}]
   ;; !!!! TODO -> Validate uniqueness of article for each captured reference
-  (validate-article data)
-    (with-db-transaction [t-conn *db*]
-      (binding [*db* t-conn]
-        (create-missing-tags tags)
-        (let [article-id (-> data
-                             db/create-article!
-                             (get (keyword "last_insert_rowid()")))]
-          (set-tags-to-article! article-id tags)
-          article-id))))
+  (or
+   (validate data validate-article-captured-reference-exists)
+   (with-db-transaction [t-conn *db*]
+     (binding [*db* t-conn]
+       (create-missing-tags tags)
+       (let [article-id (-> data
+                            db/create-article!
+                            (get (keyword "last_insert_rowid()")))]
+         (set-tags-to-article! article-id tags)
+         article-id)))))
 
 (defn update-article!
   [id {:keys [tags] :as data}]
-  (validate-article data)
-  (with-db-transaction [t-conn *db*]
-    (binding [*db* t-conn]
-      (create-missing-tags tags)
-      (clear-article-tags! id)
-      (set-tags-to-article! id tags)
-      (db/update-article! (assoc data :id id)))))
+  (or
+   (validate data validate-article-captured-reference-exists)
+   (with-db-transaction [t-conn *db*]
+     (binding [*db* t-conn]
+       (create-missing-tags tags)
+       (clear-article-tags! id)
+       (set-tags-to-article! id tags)
+       (db/update-article! (assoc data :id id))
+       nil))))
 
 (defn delete-article! [id]
   ;; !!!! TODO -> validate no review depends on it
