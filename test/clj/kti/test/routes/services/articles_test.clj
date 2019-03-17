@@ -1,5 +1,6 @@
 (ns kti.test.routes.services.articles-test
   (:require [clojure.test :refer :all]
+            [kti.validation :refer (->KtiError)]
             [kti.utils :as utils]
             [kti.routes.services.articles :refer :all]
             [kti.routes.services.articles.base :refer :all]
@@ -56,7 +57,7 @@
 
     (testing "validates with validate-article-captured-reference-exists"
       (with-redefs [validate-article-captured-reference-exists (constantly "err")]
-        (is (= {:error-msg "err"} (update-article! article-id new-data)))))
+        (is (= (->KtiError "err") (update-article! article-id new-data)))))
 
     (testing "base"
       (is (nil? (update-article! article-id new-data)))
@@ -195,7 +196,7 @@
   (testing "Fails if captured-reference does not exists"
     (let [data (get-article-data {:id-captured-reference 293})]
       (assert (-> data :id-captured-reference get-captured-reference nil?))
-      (is (= {:error-msg (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID 293)}
+      (is (= (->KtiError (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID 293))
              (create-article! data))))))
 
 (deftest test-tag-exists?

@@ -9,6 +9,7 @@
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews update-review!
                      delete-review!]]
+            [kti.validation :refer [kti-error?]]
             [ring.util.http-response :refer :all]
             [compojure.api.sweet :refer :all]
             [schema.core :as s]
@@ -122,11 +123,9 @@
         :body         [article-data ArticleInput]
         :summary      "POST for article"
         (let [res (create-article! article-data)]
-          (match [res]
-            [{:error-msg _}] (bad-request res)
-            [id] (created
-                  (str "/articles/" id)
-                  (get-article id)))))
+          (match [(kti-error? res) res]
+            [true  err] (bad-request err)
+            [false id]  (created (str "/articles/" id) (get-article id)))))
 
       (PUT "/articles/:id" [id]
         :return  Article
