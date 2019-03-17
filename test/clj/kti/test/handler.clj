@@ -9,7 +9,8 @@
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
-                     DELETE-ERR-MSG-ARTICLE-EXISTS]]
+                     DELETE-ERR-MSG-ARTICLE-EXISTS
+                     validate-captured-ref-reference-min-length]]
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
@@ -100,17 +101,22 @@
 
 (deftest test-post-captured-reference
   (let [url "/api/captured-references"
-        request (request :post url)
-        response (-> request (json-body captured-reference-data) app)
-        body (-> response :body body->map)]
-    (testing "Returns 201"
-      (is (= 201 (:status response))))
-    (let [from-db (-> body :id get-captured-reference)]
-      (testing "Creates on the db"
-        (is (= (:reference from-db) (:reference captured-reference-data))))
-      (testing "Returns created"
-        (is (= (-> from-db :created-at date->str) (:created-at body)))
-        (is (= (:reference body) (:reference from-db)))))))
+        request (request :post url)]
+    (let [response (-> request (json-body captured-reference-data) app)
+          body (-> response :body body->map)]
+      (testing "Returns 201"
+        (is (= 201 (:status response))))
+      (let [from-db (-> body :id get-captured-reference)]
+        (testing "Creates on the db"
+          (is (= (:reference from-db) (:reference captured-reference-data))))
+        (testing "Returns created"
+          (is (= (-> from-db :created-at date->str) (:created-at body)))
+          (is (= (:reference body) (:reference from-db))))))
+    (testing "Validates minimum reference length"
+      (with-redefs [validate-captured-ref-reference-min-length (fn [&_] "foobar")]
+        (let [response (-> request (json-body captured-reference-data) app)]
+          (is (= 400 (response :status)))
+          (is (= {:error-msg "foobar"} (-> response :body body->map))))))))
 
 (deftest test-delete-captured-reference
   (db/delete-all-articles)

@@ -9,6 +9,7 @@
             [kti.routes.services.articles :refer [get-article]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]
+            [kti.validation :refer [->KtiError]]
             [clojure.test :refer :all]
             [clojure.java.jdbc :as jdbc]
             [mount.core :as mount]))
@@ -33,7 +34,7 @@
   (testing "Uses utils/now when no created-at"
     (let [date (java-time/local-date-time 2017 4 5 1 1)]
       (with-redefs [utils/now (constantly date)]
-        (is (= (-> {:reference ""}
+        (is (= (-> {:reference "abc"}
                    create-captured-reference!
                    get-captured-reference
                    :created-at)
@@ -61,7 +62,11 @@
       (let [retrieved-reference (get-captured-reference id)]
         (are [k v] (= (k retrieved-reference) v)
           :id id
-          :reference reference-str)))))
+          :reference reference-str))))
+
+  (testing "Validates min length"
+    (with-redefs [validate-captured-ref-reference-min-length (fn [&_] "foo")]
+      (is (= (->KtiError "foo") (create-captured-reference! {:reference "bar"}))))))
 
 (deftest test-parse-retrieved-captured-reference
   (let [retrieved
@@ -140,3 +145,10 @@
     (with-redefs [validate-no-related-article (constantly "foobar")]
       (let [{:keys [error-msg]} (delete-captured-reference! 1)]
         (is (= error-msg "foobar"))))))
+
+(deftest test-validate-captured-ref-reference-min-length
+  (is (= ERR-MSG-REFERENCE-MIN-LENGTH
+         (validate-captured-ref-reference-min-length {:reference ""})))
+  (is (= ERR-MSG-REFERENCE-MIN-LENGTH
+         (validate-captured-ref-reference-min-length {:reference "a"})))
+  (is (nil? (validate-captured-ref-reference-min-length {:reference "aa"}))))

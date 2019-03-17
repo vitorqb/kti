@@ -11,17 +11,25 @@
 (def DELETE-ERR-MSG-ARTICLE-EXISTS
   (str  "Can not delete a captured reference used in an article."
         " Delete the article first."))
+(def REFERENCE-MIN-LENGTH 2)
+(def ERR-MSG-REFERENCE-MIN-LENGTH
+  (str "Reference must have a minimum length of " REFERENCE-MIN-LENGTH))
 
-;; !!!! TODO -> Validate min length for reference
+(defn validate-captured-ref-reference-min-length [{:keys [reference]}]
+  (when (-> reference count (< REFERENCE-MIN-LENGTH))
+    ERR-MSG-REFERENCE-MIN-LENGTH))
+
 (defn create-captured-reference!
   ([x] (create-captured-reference! *db* x))
 
-  ([db-con {:keys [reference created-at]}]
-   (-> (db/create-captured-reference!
-        db-con
-        {:reference reference
-         :created-at (or created-at (utils/now))})
-       (get (keyword "last_insert_rowid()")))))
+  ([db-con {:keys [reference created-at] :as data}]
+   (or
+    (validate data validate-captured-ref-reference-min-length)
+    (-> (db/create-captured-reference!
+         db-con
+         {:reference reference
+          :created-at (or created-at (utils/now))})
+        (get (keyword "last_insert_rowid()"))))))
 
 (defn get-all-captured-references
   ([] (get-all-captured-references *db*))

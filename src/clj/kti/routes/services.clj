@@ -87,11 +87,12 @@
         :return       CapturedReference
         :body-params  [reference :- s/Str]
         :summary      "Creates a captured reference"
-        (let [id (create-captured-reference! {:reference reference})
-              captured-ref (get-captured-reference id)]
-          (created
-           (str "/captured-references/" (:id captured-ref))
-           captured-ref)))
+        (let [res (create-captured-reference! {:reference reference})]
+          (match [(kti-error? res) res]
+            [true err] (bad-request err)
+            [false id] (created
+                        (str "/captured-references/" id)
+                        (get-captured-reference id)))))
 
       (PUT "/captured-references/:id" [id]
         :return       CapturedReference
