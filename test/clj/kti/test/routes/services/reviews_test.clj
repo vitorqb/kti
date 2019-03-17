@@ -1,8 +1,10 @@
 (ns kti.test.routes.services.reviews-test
   (:require [clojure.test :refer :all]
             [kti.routes.services.reviews :refer :all]
+            [kti.routes.services.reviews.base :refer :all]
             [kti.test.helpers :refer :all]
-            [kti.routes.services.articles :refer [article-exists? create-article!]]
+            [kti.routes.services.articles
+             :refer [article-exists? create-article! get-article]]
             [kti.db.core :refer [*db*] :as db]
             [clojure.java.jdbc :refer [insert!]]))
 
@@ -132,3 +134,10 @@
     (is (not (nil? (get-review id))))
     (delete-review! id)
     (is (nil? (get-review id)))))
+
+(deftest test-get-review-for-article
+  (let [article (get-article (create-test-article!))]
+    (is (nil? (get-review-for-article article)))
+    (let [review (get-review
+                  (create-review! (get-review-data {:id-article (article :id)})))]
+      (is (= review (get-review-for-article article))))))

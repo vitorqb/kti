@@ -142,8 +142,9 @@
         :return  []
         :summary "Deletes an article"
         (let-found? [article (get-article id)]
-          (delete-article! id)
-          (ok [])))
+          (if-let [error (delete-article! id)]
+            (bad-request error)
+            (ok []))))
 
       (POST "/reviews" []
         :return        Review
