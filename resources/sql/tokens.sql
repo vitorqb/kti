@@ -8,3 +8,6 @@ DELETE FROM tokens WHERE id_user = :id
 
 -- :name create-token! :insert
 INSERT INTO tokens (id_user, value) VALUES (:id-user, :value)
+
+-- :name get-all-token-values :? :*
+SELECT value FROM tokens

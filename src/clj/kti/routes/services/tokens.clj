@@ -8,13 +8,18 @@
 (def TOKEN-LENGTH 80)
 (def TOKEN-CHARS (into #{} "1234567890qwertyuiopasdfghjklzxcvbnm-_"))
 
+(defn get-all-token-values []
+  (->> (db/get-all-token-values) (map :value)))
+
 (defn send-token-by-email! [email value]
   (kti-http/send-email email (str "Your token is: " value)))
 
-;; !!!! TODO -> Ensure not exists on the db
 (defn gen-token []
-  (let [chars (into [] TOKEN-CHARS)]
-    (reduce (fn [acc _] (str acc (rand-nth chars))) (range TOKEN-LENGTH))))
+  (let [chars (into [] TOKEN-CHARS)
+        existing-tokens (into #{} (get-all-token-values))
+        generate-one
+        #(reduce (fn [acc _] (str acc (rand-nth chars))) (range TOKEN-LENGTH))]
+    (some #(when-not (existing-tokens %) %) (repeatedly generate-one))))
 
 (defn get-current-token-for-email [email]
   (:value (db/get-current-token-for-email {:email email})))

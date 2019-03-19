@@ -9,6 +9,15 @@
 (use-fixtures :once fixture-start-app-and-env)
 (use-fixtures :each fixture-bind-db-to-rollback-transaction)
 
+(deftest test-get-all-tokens
+  (let [tokens ["123" "456"]]
+    (jdbc/execute! *db* ["DELETE FROM tokens"])
+    (jdbc/insert-multi!
+     *db*
+     :tokens (map (fn [[x y]] (hash-map :id_user x :value y))
+                  (map vector [1 2] tokens)))
+    (is (= (get-all-token-values) tokens))))
+
 (deftest test-gen-token
   (is (= (count (gen-token)) TOKEN-LENGTH))
   (is (every? TOKEN-CHARS (gen-token))))
