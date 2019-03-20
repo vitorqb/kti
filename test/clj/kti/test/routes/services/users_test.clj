@@ -26,3 +26,15 @@
                  [(str "SELECT COUNT(*) as c from users "
                        "where email = ? AND id = ?")
                   email id])))))))
+
+(deftest test-get-user-from-token
+  (is (= (get-user-from-token nil) nil))
+  (is (= (get-user-from-token {}) nil))
+  (let [token "456"]
+    (jdbc/delete! *db* :tokens ["VALUE = ?" token])
+    (is (= (get-user-from-token token) nil)))
+  (let [token "789" user {:id 123 :email "a@b.com"}]
+    (jdbc/delete! *db* :tokens ["VALUE = ?" token])
+    (jdbc/insert! *db* :users user)
+    (jdbc/insert! *db* :tokens {:id_user (:id user) :value token})
+    (is (= (get-user-from-token token) user))))

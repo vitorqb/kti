@@ -20,3 +20,8 @@ SELECT id, email FROM users WHERE email = :email
 -- :doc deletes a user record given the id
 DELETE FROM users
 WHERE id = :id
+
+-- :name get-user-from-token :? :1
+SELECT u.id, u.email FROM users u
+JOIN tokens t ON u.id = t.id_user
+WHERE t.value = :token-value
