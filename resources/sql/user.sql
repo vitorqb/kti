@@ -10,7 +10,7 @@ WHERE id = :id
 
 -- :name get-user :? :1
 -- :doc retrieves a user record given the id
-SELECT * FROM users
+SELECT id, email FROM users
 WHERE id = :id
 
 -- :name get-user-by-email :? :1
@@ -25,3 +25,10 @@ WHERE id = :id
 SELECT u.id, u.email FROM users u
 JOIN tokens t ON u.id = t.id_user
 WHERE t.value = :token-value
+
+-- :name get-user-for-captured-reference :? :1
+SELECT u.id, u.email
+FROM users u
+JOIN captured_references c
+ON u.id = c.id_user
+WHERE u.id == :id

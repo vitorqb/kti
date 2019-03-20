@@ -19,12 +19,14 @@
   (when (-> reference count (< REFERENCE-MIN-LENGTH))
     ERR-MSG-REFERENCE-MIN-LENGTH))
 
-(defn create-captured-reference! [{:keys [reference created-at] :as data}]
+;; !!!! TODO -> Make user a mandatory argument
+(defn create-captured-reference! [{:keys [reference created-at user] :as data}]
   (or
    (validate data validate-captured-ref-reference-min-length)
    (-> (db/create-captured-reference!
         {:reference reference
-         :created-at (or created-at (utils/now))})
+         :created-at (or created-at (utils/now))
+         :id-user (:id user)})
        (get (keyword "last_insert_rowid()")))))
 
 (defn get-all-captured-references

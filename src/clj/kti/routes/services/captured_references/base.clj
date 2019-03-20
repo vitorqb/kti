@@ -12,8 +12,6 @@
                 x)))
 
 (defn get-captured-reference
-  ([id] (get-captured-reference *db* id))
-
-  ([db-con id]
-   (some-> (db/get-captured-reference db-con {:id id})
-           (parse-retrieved-captured-reference))))
+  ([id] (get-captured-reference id nil))
+  ([id user] (some-> (db/get-captured-reference *db* {:id id :user user})
+                     (parse-retrieved-captured-reference))))

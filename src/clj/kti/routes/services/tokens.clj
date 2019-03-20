@@ -11,6 +11,8 @@
 (defn get-all-token-values []
   (->> (db/get-all-token-values) (map :value)))
 
+(defn get-token-value [id] (some-> {:id id} db/get-token-value :value))
+
 (defn send-token-by-email! [email value]
   (kti-http/send-email email (str "Your token is: " value)))
 

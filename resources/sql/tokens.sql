@@ -11,3 +11,6 @@ INSERT INTO tokens (id_user, value) VALUES (:id-user, :value)
 
 -- :name get-all-token-values :? :*
 SELECT value FROM tokens
+
+-- :name get-token-value :* :1
+SELECT value FROM tokens WHERE id = :id

@@ -23,7 +23,5 @@
                t-conn
                {:id         "1"
                 :email      "sam.smith@example.com"}))))
-    (is (= {:id         1
-            :email      "sam.smith@example.com"
-            :admin      0}
+    (is (= {:id 1 :email "sam.smith@example.com"}
            (db/get-user t-conn {:id "1"})))))

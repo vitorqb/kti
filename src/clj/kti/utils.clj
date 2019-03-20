@@ -13,4 +13,5 @@
 (defn date->str [date] (java-time/format date-format date))
 (defn now [] (java-time/local-date-time))
 (defn seconds-between [x y] (java-time/time-between :seconds x y))
-(defn set-default [m k v] (if (contains? m k) m (assoc m k v)))
+(defn set-default-fn [m k f] (if (contains? m k) m (assoc m k (f))))
+(defn set-default [m k v] (set-default-fn m k (constantly v)))

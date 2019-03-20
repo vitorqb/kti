@@ -4,7 +4,9 @@
             [kti.db.core :as db :refer [*db*]]
             [kti.test.helpers :refer :all]
             [kti.routes.services.users :refer :all]
-            [kti.routes.services.users.base :refer :all]))
+            [kti.routes.services.users.base :refer :all]
+            [kti.routes.services.captured-references.base
+             :refer [get-captured-reference]]))
 
 (use-fixtures :once fixture-start-app-and-env)
 (use-fixtures :each fixture-bind-db-to-rollback-transaction)
@@ -38,3 +40,17 @@
     (jdbc/insert! *db* :users user)
     (jdbc/insert! *db* :tokens {:id_user (:id user) :value token})
     (is (= (get-user-from-token token) user))))
+
+(deftest test-get-user
+  (jdbc/delete! *db* :users [])
+  (is (nil? (get-user 1)))
+  (let [user {:id 1 :email "a@b.com"}]
+    (jdbc/insert! *db* :users user)
+    (is (= user (get-user 1)))))
+
+(deftest test-get-user-for
+  (testing "captured-reference"
+    (let [user (get-user (create-test-user!))
+          cap-ref (get-captured-reference
+                   (create-test-captured-reference! {:user user}))]
+      (is (= user (get-user-for :captured-reference cap-ref))))))
