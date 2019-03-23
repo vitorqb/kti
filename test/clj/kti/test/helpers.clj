@@ -61,18 +61,24 @@
               (set-default :tags #{"google"}))))
 
 (defn create-test-article! [& key-val]
-  (let [data (apply hash-map key-val)
-        keys [:id-captured-reference :description :action-link :tags]
-        get-default #(case %
-                       :id-captured-reference (create-test-captured-reference!)
-                       :description "Search for git book"
-                       :action-link "https://www.google.com/search?q=git+book"
-                       :tags #{"google"})
-        {:keys [error-msg] :as id}
-        (create-article!
-         (into {} (map (fn [k] [k (or (k data) (get-default k))]) keys)))]
-    (assert (nil? error-msg) (str "Failed to create article for test: " error-msg))
-    id))
+  (let [raw-data (apply hash-map key-val)]
+    (assert (not (every? raw-data #{:id-captured-reference :user})))
+    (let [data (if-let [user (:user raw-data)]
+                 (assoc raw-data
+                        :id-captured-reference
+                        (create-test-captured-reference! {:user user}))
+                 raw-data)]
+      (let [keys [:id-captured-reference :description :action-link :tags]
+            get-default #(case %
+                           :id-captured-reference (create-test-captured-reference!)
+                           :description "Search for git book"
+                           :action-link "https://www.google.com/search?q=git+book"
+                           :tags #{"google"})
+            {:keys [error-msg] :as id}
+            (create-article!
+             (into {} (map (fn [k] [k (or (k data) (get-default k))]) keys)))]
+        (assert (nil? error-msg) (str "Failed to create article for test: " error-msg))
+        id))))
 
 (defn create-test-user! [& key-val]
   (let [data (apply hash-map key-val)

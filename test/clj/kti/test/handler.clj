@@ -179,32 +179,42 @@
                    (-> response :body body->map)))))))))
 
 (deftest test-get-articles
-  (clean-articles-and-tags)
-  (let [run-request #(app (request :get "/api/articles"))]
-    (testing "empty"
-      (is (empty-response? (run-request))))
-
-    (testing "two articles"
-      ;; Creates references and articles
-      (let [captured-refs-data [{:reference "ref-one"} {:reference "ref-two"}]
-            captured-refs-ids (doall (map create-captured-reference!
-                                          captured-refs-data))
-            articles-data [(get-article-data
-                            {:id-captured-reference (first captured-refs-ids)
-                             :tags []})
-                           {:id-captured-reference (second captured-refs-ids)
-                            :description "Read how linux works"
-                            :action-link nil
-                            :tags ["book"]}]
-            articles-ids (doall (map create-article! articles-data))
-            response (run-request)
-            body (-> response :body body->map)]
-        (is (ok? response))
-        (is (= (count body) (count articles-ids)))
-        (is (= (first body)
-               (assoc (first articles-data) :id (first articles-ids))))
-        (is (= (second body)
-               (assoc (second articles-data) :id (second articles-ids))))))))
+  (let [user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))]
+    (letfn [(run-request [token] (-> (request :get "/api/articles")
+                                     (cond-> token (auth-header token))
+                                     app))]
+      (testing "missing auth" (is (missing-auth? (run-request nil))))
+      (testing "empty" (is (empty-response? (run-request token))))
+      (testing "two articles"
+        ;; Creates references and articles
+        (let [captured-refs-data
+              (map #(hash-map :reference % :user user) ["one" "two"])
+              captured-refs-ids
+              (doall (map create-captured-reference! captured-refs-data))
+              articles-data
+              [{:id-captured-reference (first captured-refs-ids)
+                :description "Read blabla"
+                :action-link "www.blabla.com"
+                :tags ["book" "other"]}
+               {:id-captured-reference (second captured-refs-ids)
+                :description "Read how linux works"
+                :action-link nil
+                :tags ["book"]}]
+              articles-ids (doall (map create-article! articles-data))
+              response (run-request token)
+              body (-> response :body body->map)]
+          (is (ok? response))
+          (is (= (count body) (count articles-ids)))
+          (is (= (first body)
+                 (assoc (first articles-data) :id (first articles-ids))))
+          (is (= (second body)
+                 (assoc (second articles-data) :id (second articles-ids))))))
+      (testing "don't see from other users"
+        (let [id (create-test-article!)
+              token (get-token-value (create-test-token!))]
+          (is (not ((->> (run-request token) :body body->map (map :id) (into #{}))
+                    id))))))))
 
 (deftest test-get-article
   (let [article (get-article (create-test-article!))

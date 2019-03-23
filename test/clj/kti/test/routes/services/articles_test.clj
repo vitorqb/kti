@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [kti.validation :refer [->KtiError validate]]
             [kti.utils :as utils]
+            [kti.routes.services.users :refer [get-user]]
             [kti.routes.services.articles :refer :all]
             [kti.routes.services.articles.base :refer :all]
             [kti.routes.services.reviews.base :refer [get-review-for-article]]
@@ -16,7 +17,8 @@
                      fixture-bind-db-to-rollback-transaction
                      create-test-captured-reference!
                      get-article-data
-                     create-test-article!]]
+                     create-test-article!
+                     create-test-user!]]
             [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [mount.core :as mount]))
@@ -128,19 +130,18 @@
     (clear-article-tags! article-id)
     (is (= (get-tags-for-article {:id article-id}) #{}))))
 
-(deftest test-get-all-articles
-  (clean-articles-and-tags)
-  (let [data [(get-article-data
-               {:id-captured-reference (create-test-captured-reference!)})
-              {:id-captured-reference (create-test-captured-reference!)
-               :description "Search for git book."
-               :action-link "https://www.google.com/search?q=git+book"
-               :tags #{}}]
-        ids (doall (map create-article! data))
-        gotten-articles (get-all-articles)]
-    (is (= 2 (count gotten-articles)))
-    (is (= (map :description gotten-articles) (map :description data)))
-    (is (= (map (comp set :tags) gotten-articles) (map :tags data)))))
+(deftest test-get-user-articles
+  (let [user (get-user (create-test-user!))]
+    (testing "Empty" (is (= [] (get-user-articles user))))
+    (testing "Two"
+      (let [articles-ids [(create-test-article! :user user)
+                          (create-test-article! :user user)]]
+        (is (= (map get-article articles-ids) (get-user-articles user)))))
+    (testing "Don't see from others"
+      (let [other-user (get-user (create-test-user!))
+            id (create-test-article! :user other-user)]
+        (is (not ((->> (get-user-articles user) (map :id) (into #{}))
+                  id)))))))
 
 (deftest test-parse-article-data
   (let [raw-data {:id 1
