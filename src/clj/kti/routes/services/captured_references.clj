@@ -29,10 +29,10 @@
          :id-user (:id user)})
        (get (keyword "last_insert_rowid()")))))
 
-(defn get-all-captured-references
-  ([] (get-all-captured-references *db*))
-  ([con]
-   (map parse-retrieved-captured-reference (db/get-all-captured-references con {}))))  
+(defn get-user-captured-references [user]
+  (->> {:user user}
+       db/get-user-captured-references
+       (map parse-retrieved-captured-reference)))
 
 (defn update-captured-reference!
   [id args]

@@ -82,11 +82,13 @@
     
     (context "/api" []
 
-      ;; !!!! TODO -> Implement auth header
       (GET "/captured-references" []
         :return       [CapturedReference]
+        :header-params [authorization :- s/Str]
         :summary      "Bring all captured references"
-        (ok (get-all-captured-references)))
+        (fn [r]
+          (let-auth? [user r]
+            (ok (get-user-captured-references user)))))
 
       (GET "/captured-references/:id" [id]
         :return       CapturedReference

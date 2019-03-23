@@ -46,9 +46,8 @@
   (let [response (app (request :get "/api/captured-references"))]
     (is (= JSON_FORMAT (get-in response [:headers CONTENT_TYPE])))))
 
-(deftest test-get-captured-reference
-  (testing "get captured reference for a single id"
-    (let [user (get-user (create-test-user!))
+(deftest test-get-single-captured-reference
+  (let [user (get-user (create-test-user!))
           token (get-token-value (create-test-token! user))
           {:keys [id reference created-at]}
           (get-captured-reference
@@ -69,22 +68,32 @@
           :created-at (utils/date->str created-at)
           :classified false))))
 
-  (testing "get all captured references"
-    (db/delete-all-captured-references)
-    (let [run-get #(app (request :get "/api/captured-references"))]
-      (testing "empty"
-        (is (empty-response? (run-get))))
-
-      (testing "two long"
-        (let [datas [(get-captured-reference-data)
-                     {:reference "two"
-                      :created-at (java-time/local-date-time 1991 8 13)}]
-              ids (doall (map create-captured-reference! datas))
-              response (run-get)
-              body (-> response :body body->map)]
-          (is (ok? response))
-          (is (= (count body) 2))
-          (is (= (set ids) (->> body (map :id) set))))))))
+(deftest test-get-all-captured-reference
+  (letfn [(run-get [token]
+            (-> (request :get "/api/captured-references")
+                (cond-> token (auth-header token))
+                app))]
+    (testing "empty"
+      (let [token (get-token-value (create-test-token!))]
+        (is (empty-response? (run-get token)))))
+    (testing "missing auth" (is (missing-auth? (run-get nil))))
+    (testing "two long same user"
+      (let [user (get-user (create-test-user!))
+            token (get-token-value (create-test-token! user))
+            datas [(get-captured-reference-data {:user user})
+                   {:reference "two"
+                    :created-at (java-time/local-date-time 1991 8 13)
+                    :user user}]
+            ids (doall (map create-captured-reference! datas))
+            response (run-get token)
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (count body) 2))
+        (is (= (set ids) (->> body (map :id) set)))))
+    (testing "Can't see form other user"
+      (let [id (create-test-captured-reference!)
+            token (get-token-value (create-test-token!))]
+        (is (= 0 (-> token run-get :body body->map count)))))))
 
 (deftest test-put-captured-reference
   (let [run-request #(-> (request :put (str "/api/captured-references/" %1))

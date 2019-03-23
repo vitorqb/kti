@@ -20,11 +20,8 @@
   ([db params & rest]
    (apply q-get-captured-reference db (assoc params :select (snip-select)) rest)))
 
-(defn get-all-captured-references
-  ([] (get-all-captured-references {}))
-  ([params] (q-get-all-captured-references (assoc params :select (snip-select))))
-  ([db params & rest]
-   (apply q-get-all-captured-references db (assoc params :select (snip-select)) rest)))
+(defn get-user-captured-references
+  [params] (q-get-user-captured-references (assoc params :select (snip-select))))
 
 (conman/bind-connection *db* "sql/tags.sql")
 (conman/bind-connection *db* "sql/articles.sql")

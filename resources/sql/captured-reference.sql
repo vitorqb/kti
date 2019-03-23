@@ -19,9 +19,9 @@ VALUES (:reference, :created-at, :id-user)
 WHERE cr.id = :id
 --~ (if (:user params) "AND id_user = :value:user.id")
 
--- :name q-get-all-captured-references :? :*
--- :doc retrieves all captured references
+-- :name q-get-user-captured-references :? :*
 :snip:select
+WHERE cr.id_user = :value:user.id
 
 -- :name delete-all-captured-references :! :n
 -- :doc deletes all captured references
