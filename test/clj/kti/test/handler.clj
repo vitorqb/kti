@@ -87,27 +87,30 @@
           (is (= (set ids) (->> body (map :id) set))))))))
 
 (deftest test-put-captured-reference
-  (let [make-url #(str "/api/captured-references/" %)
-        run-request #(-> (request :put (make-url %1))
+  (let [run-request #(-> (request :put (str "/api/captured-references/" %1))
                          (json-body %2)
-                         app)]
-    (is (not-found? (run-request "invalid-id" captured-reference-data)))
-    (let [data (get-captured-reference-data)
-          id (create-captured-reference! data)
+                         (cond-> %3 (auth-header %3))
+                         app)
+        user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))]
+    (is (not-found? (run-request "invalid-id" captured-reference-data token)))
+    (let [id (create-captured-reference! (get-captured-reference-data {:user user}))
           new-data {:reference "new-reeef"}
-          response (run-request id new-data)
-          body (-> response :body body->map)]
-      (is (ok? response))
-      (is (= (:reference body)
-             (:reference new-data)
-             (:reference (get-captured-reference id)))))
+          other-user-token (get-token-value (create-test-token!))]
+      (is (not-found? (run-request id new-data other-user-token)))
+      (let [response (run-request id new-data token)
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (:reference body)
+               (:reference new-data)
+               (:reference (get-captured-reference id))))))      
 
     (testing "Validation error for ref length"
-        (let [id (create-test-captured-reference!)
+        (let [id (create-test-captured-reference! {:user user})
               new-data {:reference "bar"}
               response (with-redefs [validate-captured-ref-reference-min-length
                                      (fn [&_] "foo")]
-                         (run-request id new-data))]
+                         (run-request id new-data token))]
           (is (= 400 (response :status)))
           (is (= "foo" (-> response :body body->map :error-msg)))))))        
 

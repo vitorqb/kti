@@ -111,15 +111,17 @@
                             (str "/captured-references/" id)
                             (get-captured-reference id)))))))
 
-      ;; !!!! TODO -> Implement auth header
       (PUT "/captured-references/:id" [id]
         :return       CapturedReference
+        :header-params [authorization :- s/Str]
         :body-params  [reference :- s/Str]
         :summary      "Put for a captured reference"
-        (let-found? [captured-reference (get-captured-reference id)]
-          (if-let [err (update-captured-reference! id {:reference reference})]
-            (bad-request err)
-            (ok (get-captured-reference id)))))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [captured-reference (get-captured-reference id user)]
+              (if-let [err (update-captured-reference! id {:reference reference})]
+                (bad-request err)
+                (ok (get-captured-reference id user)))))))
 
       ;; !!!! TODO -> Implement auth header
       (DELETE "/captured-references/:id" [id]

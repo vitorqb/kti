@@ -64,7 +64,8 @@
       (testing "He sees that the link is wrong and updates it"
         (let [new-link "https://www.youtube.com/watch?v=aG2uddkKWYE"
               response (app (-> (request :put captured-reference-url)
-                                (json-body {:reference new-link})))
+                                (json-body {:reference new-link})
+                                (auth-header token)))
               {raw-body :body status :status} response
               {:keys [id reference]} (body->map raw-body)]
           (is (ok? response))
