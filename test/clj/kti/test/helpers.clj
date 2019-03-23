@@ -4,11 +4,14 @@
             [cheshire.core :as cheshire]
             [kti.handler]
             [kti.db.core :as db]
-            [kti.utils :as utils :refer [set-default]]
+            [kti.utils :as utils :refer [set-default set-default-fn]]
             [kti.config :refer [env]]
             [kti.db.core :refer [*db*]]
             [kti.routes.services.captured-references :as service-captured-references]
             [kti.routes.services.articles :refer [create-article!]]
+            [kti.routes.services.users.base :refer [create-user!]]
+            [kti.routes.services.users :refer [get-user]]
+            [kti.routes.services.tokens :refer [gen-token create-token!]]
             [mount.core :as mount]
             [clojure.java.jdbc :as jdbc]))
 
@@ -20,8 +23,21 @@
 (defn not-found? [response] (= 404 (:status response)))
 (defn ok? [response] (= 200 (:status response)))
 (defn empty-response? [r] (and (ok? r) (= [] (body->map (:body r)))))
+(defn missing-auth? [r] (and (= 400 (:status r))
+                             (= {:authorization "missing-required-key"}
+                                (-> r :body body->map :errors))))
+(defn auth-header [request token]
+  (header request :authorization (str "TOKEN " token)))
 
 ;; Db populate and cleanup
+(def email-chars "1234567890qwertyuiopasdfghjklzxcvbnm")
+(def user-emails (atom (for [x email-chars y email-chars z email-chars]
+                         (str x "@" y "." z))))
+(defn get-user-email []
+  (let [out (first @user-emails)]
+    (swap! user-emails rest)
+    out))
+  
 (defn clean-articles-and-tags []
   (db/delete-all-articles)
   (db/delete-all-articles-tags)
@@ -58,12 +74,24 @@
     (assert (nil? error-msg) (str "Failed to create article for test: " error-msg))
     id))
 
+(defn create-test-user! [& key-val]
+  (let [data (apply hash-map key-val)
+        keys [:email]
+        get-default #(case % :email (get-user-email))]
+    (create-user! (into {} (map #(vector % (or (% data) (get-default %)))) keys))))
+
+(defn create-test-token!
+  ([] (create-test-token! (get-user (create-test-user!))))
+  ([user] (create-token! {:user user :value (gen-token)})))
+  
+
 (defn get-captured-reference-data
   "Captured-reference data for testing"
   ([] (get-captured-reference-data {}))
   ([data] (-> data
-              (set-default :reference "Some reference")
-              (set-default :created-at (java-time/local-date-time 1993 11 23)))))
+              (set-default    :reference  "Some reference")
+              (set-default    :created-at (java-time/local-date-time 1993 11 23))
+              (set-default-fn :user       (comp get-user create-test-user!)))))
 
 (defn get-review-data
   ([] (get-review-data {}))

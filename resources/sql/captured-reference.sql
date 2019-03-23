@@ -10,14 +10,14 @@ LEFT OUTER JOIN articles AS a ON a.id_captured_reference = cr.id
 
 -- :name create-captured-reference! :insert
 -- :doc creates a new captured-reference
-INSERT INTO captured_references
-(reference, created_at)
-VALUES (:reference, :created-at)
+INSERT INTO captured_references (reference, created_at, id_user)
+VALUES (:reference, :created-at, :id-user)
 
 -- :name q-get-captured-reference :? :1
 -- :doc retrieves a captured-reference given it'is id
 :snip:select
 WHERE cr.id = :id
+--~ (if (:user params) "AND id_user = :value:user.id")
 
 -- :name q-get-all-captured-references :? :*
 -- :doc retrieves all captured references

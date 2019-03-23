@@ -5,7 +5,8 @@
             [kti.handler :refer :all]
             [kti.routes.services :refer [Review Article]]
             [kti.routes.services.tokens
-             :refer [gen-token get-current-token-for-email give-token!]]
+             :refer [gen-token get-current-token-for-email give-token!
+                     get-token-value]]
             [kti.routes.services.users.base
              :refer [get-user-by-email]]
             [kti.utils :refer :all]
@@ -25,6 +26,7 @@
                      ERR-MSG-ARTICLE-HAS-REVIEW]]
             [kti.routes.services.reviews
              :refer [create-review! get-review]]
+            [kti.routes.services.users :refer [get-user get-user-for]]
             [kti.utils :as utils]
             [kti.middleware.formats :as formats]
             [ring.swagger.schema :as ring-schema]
@@ -45,25 +47,26 @@
     (is (= JSON_FORMAT (get-in response [:headers CONTENT_TYPE])))))
 
 (deftest test-get-captured-reference
-  (db/delete-all-articles)
   (testing "get captured reference for a single id"
-    (testing "not found"
-      (let [response (app (request :get url-inexistant-captured-reference))]
-        (is (not-found? response))))
-
-    (testing "found"
-      (let [data (get-captured-reference-data)
-            captured-reference-id (create-captured-reference! data)
-            response (->> captured-reference-id
-                          (str "/api/captured-references/")
-                          (request :get)
-                          (app))
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))
+          {:keys [id reference created-at]}
+          (get-captured-reference
+           (create-test-captured-reference! {:user user}))
+          run-request #(-> (request :get (str "/api/captured-references/" %1))
+                           (cond-> %2 (auth-header %2))
+                           app)]
+      (is (missing-auth? (run-request 1 nil)))
+      (is (not-found? (run-request 213829123 token)))
+      (let [other-user-token (get-token-value (create-test-token!))]
+        (is (not-found? (run-request id other-user-token))))
+      (let [response (run-request id token)
             body (-> response :body body->map)]
         (is (ok? response))
         (are [k v] (= (k body) v)
-          :id captured-reference-id
-          :reference (:reference data)
-          :created-at (utils/date->str (:created-at data))
+          :id id
+          :reference reference
+          :created-at (utils/date->str created-at)
           :classified false))))
 
   (testing "get all captured references"
@@ -85,51 +88,51 @@
 
 (deftest test-put-captured-reference
   (let [make-url #(str "/api/captured-references/" %)
-        make-request #(request :put (make-url %))]
-    (testing "id not found"
-      (let [response (app (-> (make-request "not-an-id")
-                              (json-body captured-reference-data)))]
-        (is (not-found? response))))
+        run-request #(-> (request :put (make-url %1))
+                         (json-body %2)
+                         app)]
+    (is (not-found? (run-request "invalid-id" captured-reference-data)))
+    (let [data (get-captured-reference-data)
+          id (create-captured-reference! data)
+          new-data {:reference "new-reeef"}
+          response (run-request id new-data)
+          body (-> response :body body->map)]
+      (is (ok? response))
+      (is (= (:reference body)
+             (:reference new-data)
+             (:reference (get-captured-reference id)))))
 
-    (testing "Id found"
-      (let [data (get-captured-reference-data)
-            id (create-captured-reference! data)
-            new-data {:reference "new-reeef"}
-            response (app (-> (make-request id) (json-body new-data)))
-            body (-> response :body body->map)]
-
-        (testing "Response is okay"
-          (is (ok? response))
-          (is (= (:reference body) (:reference new-data))))
-
-        (testing "Db was updated"
-          (is (= (:reference (get-captured-reference id))
-                 (:reference new-data))))))
     (testing "Validation error for ref length"
         (let [id (create-test-captured-reference!)
               new-data {:reference "bar"}
               response (with-redefs [validate-captured-ref-reference-min-length
                                      (fn [&_] "foo")]
-                         (-> id make-request (json-body new-data) app))]
+                         (run-request id new-data))]
           (is (= 400 (response :status)))
-          (is (= "foo" (-> response :body body->map :error-msg)))))))
+          (is (= "foo" (-> response :body body->map :error-msg)))))))        
 
 (deftest test-post-captured-reference
-  (let [url "/api/captured-references"
+  (let [user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))
+        url "/api/captured-references"
+        run-request #(-> (request :post "/api/captured-references")
+                         (cond-> %1 (json-body %1))
+                         (cond-> %2 (auth-header %2))
+                         app)
         request (request :post url)]
-    (let [response (-> request (json-body captured-reference-data) app)
+    (is (missing-auth? (run-request {:reference ""} nil)))        
+    (let [response (run-request captured-reference-data token)
           body (-> response :body body->map)]
       (testing "Returns 201"
         (is (= 201 (:status response))))
       (let [from-db (-> body :id get-captured-reference)]
-        (testing "Creates on the db"
-          (is (= (:reference from-db) (:reference captured-reference-data))))
-        (testing "Returns created"
-          (is (= (-> from-db :created-at date->str) (:created-at body)))
-          (is (= (:reference body) (:reference from-db))))))
+        (is (= (:reference from-db) (:reference captured-reference-data)))
+        (is (= user (get-user-for :captured-reference from-db)))
+        (is (= (:created-at body) (-> from-db :created-at date->str)))
+        (is (= (:reference body) (:reference from-db)))))
     (testing "Validates minimum reference length"
       (with-redefs [validate-captured-ref-reference-min-length (fn [&_] "foobar")]
-        (let [response (-> request (json-body captured-reference-data) app)]
+        (let [response (run-request captured-reference-data token)]
           (is (= 400 (response :status)))
           (is (= {:error-msg "foobar"} (-> response :body body->map))))))))
 

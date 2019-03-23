@@ -11,9 +11,8 @@
 (defn extract-token [request]
   (some-> request
           (get-header "authorization")
-          str/lower-case
           str/trim
-          (#(and (re-matches #"^token [^ ]+$" %) %))
+          (#(and (re-matches #"(?i)^token [^ ]+$" %) %))
           (->> (drop 6) (apply str))))
 
 (defn bind-user [handler extract-user]

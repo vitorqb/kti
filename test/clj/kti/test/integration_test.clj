@@ -1,6 +1,8 @@
 (ns kti.test.integration-test
   (:require [clojure.test :refer :all]
             [kti.test.helpers :refer :all]
+            [kti.routes.services.tokens :refer [get-token-value]]
+            [kti.routes.services.users :refer [get-user]]
             [kti.db.core :as db]
             [java-time]
             [kti.utils :as utils]
@@ -18,10 +20,14 @@
   (db/delete-all-captured-references)
   (db/delete-all-articles)
   (let [link "https://www.youtube.com/watch?v=VON0rut5Pl8"
-        created-id (atom nil)]
+        created-id (atom nil)
+        user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))]
     (testing "User captures a reference link from youtube"
-      (let [response (app (-> (request :post "/api/captured-references")
-                              (json-body {:reference link})))
+      (let [response (-> (request :post "/api/captured-references")
+                         (json-body {:reference link})
+                         (auth-header token)
+                         app)
             body (-> response :body body->map)]
         (is (= 201 (:status response)) (slurp (:body response)))
         (is (integer? (:id body)))
@@ -34,7 +40,9 @@
         (reset! created-id (:id body))))
 
     (testing "Gets all references and sees the one he captured there"
-      (let [response (app (request :get "/api/captured-references"))
+      (let [response (-> (request :get "/api/captured-references")
+                         (auth-header token)
+                         app)
             body (-> response :body body->map)]
         (is (ok? response))
         (is (= (count body) 1))
@@ -45,7 +53,9 @@
 
     (let [captured-reference-url (str "/api/captured-references/" @created-id)]
       (testing "Queries for the one he captured and sees it"
-        (let [response (app (request :get captured-reference-url))
+        (let [response (-> (request :get captured-reference-url)
+                           (auth-header token)
+                           app)
               body (-> response :body body->map)]
           (is (ok? response))
           (is (= (:id body) @created-id))

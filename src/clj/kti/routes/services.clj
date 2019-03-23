@@ -24,6 +24,15 @@
      (do ~@body)
      (not-found)))
 
+(defmacro let-auth? [binding & body]
+  "Creates a context with a user from a request, or returns 401 if no user.
+   Example usage:
+   (let-auth? [user request] (get-something user))"
+  (let [updated-binding (update binding 1 #(list :user %))]
+    `(if-let ~updated-binding
+       (do ~@body)
+       (unauthorized))))
+
 ;;
 ;; Schemas
 ;; 
@@ -73,6 +82,7 @@
     
     (context "/api" []
 
+      ;; !!!! TODO -> Implement auth header
       (GET "/captured-references" []
         :return       [CapturedReference]
         :summary      "Bring all captured references"
@@ -80,21 +90,28 @@
 
       (GET "/captured-references/:id" [id]
         :return       CapturedReference
+        :header-params [authorization :- s/Str]
         :summary      "Get for a captured reference."
-        (let-found? [captured-reference (get-captured-reference id)]
-          (ok captured-reference)))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [captured-reference (get-captured-reference id user)]
+              (ok captured-reference)))))
 
       (POST "/captured-references" []
-        :return       CapturedReference
-        :body-params  [reference :- s/Str]
+        :return        CapturedReference
+        :header-params [authorization :- s/Str]
+        :body-params   [reference :- s/Str]
         :summary      "Creates a captured reference"
-        (let [res (create-captured-reference! {:reference reference})]
-          (match [(kti-error? res) res]
-            [true err] (bad-request err)
-            [false id] (created
-                        (str "/captured-references/" id)
-                        (get-captured-reference id)))))
+        (fn [r]
+          (let-auth? [user r]
+            (let [res (create-captured-reference! {:reference reference :user user})]
+              (match [(kti-error? res) res]
+                [true err] (bad-request err)
+                [false id] (created
+                            (str "/captured-references/" id)
+                            (get-captured-reference id)))))))
 
+      ;; !!!! TODO -> Implement auth header
       (PUT "/captured-references/:id" [id]
         :return       CapturedReference
         :body-params  [reference :- s/Str]
@@ -104,6 +121,7 @@
             (bad-request err)
             (ok (get-captured-reference id)))))
 
+      ;; !!!! TODO -> Implement auth header
       (DELETE "/captured-references/:id" [id]
         :summary "Deletes a captured reference"
         (let-found? [captured-reference (get-captured-reference id)]

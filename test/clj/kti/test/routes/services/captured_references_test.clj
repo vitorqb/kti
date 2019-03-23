@@ -7,6 +7,7 @@
             [kti.routes.services.captured-references.base
              :refer [parse-retrieved-captured-reference get-captured-reference]]
             [kti.routes.services.articles :refer [get-article]]
+            [kti.routes.services.users :refer [get-user get-user-for]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]
             [kti.validation :refer [->KtiError]]
@@ -21,7 +22,7 @@
   (testing "Creating and returning a new captured reference"
     (db/delete-all-captured-references)
     (db/delete-all-articles)
-    (let [data (get-captured-reference-data)
+    (let [data (get-captured-reference-data {:id-user 123})
           id (create-captured-reference! data)
           retrieved-reference (get-captured-reference id)]
       (is (integer? id))
@@ -29,7 +30,8 @@
         :id id
         :reference (:reference data)
         :classified false
-        :created-at (:created-at data))))
+        :created-at (:created-at data))
+      (is (= (:id-user data) 123))))
 
   (testing "Uses utils/now when no created-at"
     (let [date (java-time/local-date-time 2017 4 5 1 1)]
@@ -95,7 +97,8 @@
         datetime-str "2018-01-01T00:00:00"]
     (doseq [reference references]
       (db/create-captured-reference! {:reference reference
-                                      :created-at datetime-str}))
+                                      :created-at datetime-str
+                                      :id-user 1}))
     (let [all-captured-references (get-all-captured-references)]
       (is (= (count all-captured-references) (count references)))
       (is (= (set (map :reference all-captured-references))
@@ -112,7 +115,14 @@
     (let [data (-> (create-test-captured-reference!) get-captured-reference)]
       (is (false? (:classified data)))
       (create-test-article! :id-captured-reference (:id data))
-      (is (true? (-> data :id get-captured-reference :classified))))))
+      (is (true? (-> data :id get-captured-reference :classified)))))
+  (testing "Nil when belongs to other user"
+    (let [user (get-user (create-test-user!))
+          {:keys [id] :as cap-ref}
+          (get-captured-reference (create-test-captured-reference! {:user user}))
+          other-user (get-user (create-test-user!))]
+      (is (nil? (get-captured-reference id other-user)))
+      (is (= cap-ref (get-captured-reference id user))))))
 
 (deftest test-update-captured-reference!
   (testing "Updating reference"
