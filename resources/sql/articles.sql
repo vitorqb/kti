@@ -11,7 +11,10 @@ SELECT a.id as id,
 FROM articles a
 
 -- :name q-get-article :? :1
-:snip:select WHERE id = :id
+:snip:select
+--~ (if (:user params) "JOIN captured_references cr ON cr.id = a.id_captured_reference")
+WHERE a.id = :id
+--~ (if (:user params) "AND cr.id_user = :value:user.id")
 
 -- :name q-get-user-articles :? :*
 :snip:select
