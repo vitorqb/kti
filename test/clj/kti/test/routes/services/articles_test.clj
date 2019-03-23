@@ -40,7 +40,12 @@
                                   :tags #{"tag1" "tag2" "another"}})
           created-article-id (create-article! data)]
       (is (= (get-article created-article-id)
-             (assoc data :id created-article-id))))))
+             (assoc data :id created-article-id)))))
+
+  (testing "with user"
+    (let [user {:id 22} id (create-test-article! :user user)]
+      (is (= (get-article id user) (get-article id)))
+      (is (nil? (get-article id {:id 33}))))))
 
 (deftest test-get-article-for-captured-reference
   (let [{:keys [id] :as captured-reference}

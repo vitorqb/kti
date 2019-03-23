@@ -112,8 +112,8 @@
   (map parse-article-data (db/get-user-articles {:user user})))
 
 (defn get-article
-  [id]
-  (some-> (db/get-article {:id id}) parse-article-data))
+  ([id] (get-article id nil))
+  ([id user] (some-> {:id id :user user} db/get-article parse-article-data)))
 
 (defn get-tags-for-article [article]
   (->> (db/get-tags-for-article article) (map :id_tag) (into #{})))

@@ -217,11 +217,22 @@
                     id))))))))
 
 (deftest test-get-article
-  (let [article (get-article (create-test-article!))
-        response (app (request :get (str "/api/articles/" (:id article))))
-        body (-> response :body body->map)]
-    (is (ok? response))
-    (is (= (ring-schema/coerce! Article body) article))))
+  (let [user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))
+        article (get-article (create-test-article! :user user))
+        run-request #(-> (request :get (str "/api/articles/" %1))
+                         (cond-> %2 (auth-header %2))
+                         app)]
+    (testing "Auth required"
+      (is (missing-auth? (run-request (:id article) nil))))
+    (testing "Can't see other user's article"
+      (is (not-found? (run-request (:id article)
+                                   (get-token-value (create-test-token!))))))
+    (testing "Base"
+      (let [response (run-request (:id article) token)
+            body (-> response :body body->map)]
+        (is (ok? response))
+        (is (= (ring-schema/coerce! Article body) article))))))
     
         
 (deftest test-post-article

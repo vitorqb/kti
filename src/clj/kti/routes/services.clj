@@ -144,9 +144,13 @@
             (ok (get-user-articles user)))))
 
       (GET "/articles/:id" [id]
-        :return  Article
-        :summary "Get for a single article"
-        (let-found? [article (get-article id)] (ok article)))
+        :return        Article
+        :header-params [authorization :- s/Str]
+        :summary       "Get for a single article"
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [article (get-article id user)]
+              (ok article)))))
 
       (POST "/articles" []
         :return       Article
