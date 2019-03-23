@@ -140,27 +140,34 @@
           (is (= {:error-msg "foobar"} (-> response :body body->map))))))))
 
 (deftest test-delete-captured-reference
-  (db/delete-all-articles)
-  (testing "base"
-    (let [id (create-test-captured-reference!)
-          url (str "/api/captured-references/" id)
-          response (app (request :delete url))]
-      (is (ok? response))
-      (is (empty-response? response))
-      (is (nil? (get-captured-reference id)))))
-  (testing "Error if article exists"
-    (let [id (create-test-captured-reference!)]
-      (create-test-article! :id-captured-reference id)
-      (let [response (app (request :delete (str "/api/captured-references/" id)))]
-        (is (= 400 (:status response)))
-        (let [body (-> response :body body->map)]
-          (is (= {:error-msg DELETE-ERR-MSG-ARTICLE-EXISTS}
-                 body))))))
-  (testing "404"
-    (let [id 92839 url (str "/api/captured-references/" id)]
-      (assert (nil? (get-captured-reference id)))
-      (is (not-found? (app (request :delete url)))))))
-
+  (letfn [(run-request [id token]
+            (-> (request :delete (str "/api/captured-references/" id))
+                (cond-> token (auth-header token))
+                app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))]
+      (testing "base"
+        (let [id (create-test-captured-reference! {:user user})
+              response (run-request id token)]
+          (is (ok? response))
+          (is (empty-response? response))
+          (is (nil? (get-captured-reference id)))))
+      (testing "404 if from another user"
+        (let [other-user (get-user (create-test-user!))
+              token (get-token-value (create-test-token! other-user))
+              id (create-test-captured-reference! {:user user})]
+          (is (not-found? (run-request id token)))))
+      (testing "400 if missing header"
+        (is (missing-auth? (run-request 1 nil))))
+      (testing "404 on invalid id"
+        (is (not-found? (run-request 222 token))))
+      (testing "Error if article exists"
+        (let [id (create-test-captured-reference! {:user user})]
+          (create-test-article! :id-captured-reference id)
+          (let [response (run-request id token)]
+            (is (= 400 (:status response)))
+            (is (= {:error-msg DELETE-ERR-MSG-ARTICLE-EXISTS}
+                   (-> response :body body->map)))))))))
 
 (deftest test-get-articles
   (clean-articles-and-tags)
