@@ -2,7 +2,7 @@
   (:require [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.captured-references.base :refer :all]
             [kti.routes.services.articles
-             :refer [get-all-articles get-article create-article! update-article!
+             :refer [get-user-articles get-article create-article! update-article!
                      article-exists? delete-article!]]
             [kti.routes.services.articles.base
              :refer [get-article-for-captured-reference]]
@@ -136,9 +136,12 @@
                 (ok []))))))
 
       (GET "/articles" []
-        :return       [Article]
-        :summary      "Bring all articles"
-        (ok (get-all-articles)))
+        :return        [Article]
+        :header-params [authorization :- s/Str]
+        :summary       "Bring all articles"
+        (fn [r]
+          (let-auth? [user r]
+            (ok (get-user-articles user)))))
 
       (GET "/articles/:id" [id]
         :return  Article

@@ -1,5 +1,5 @@
 -- :snip snip-select-article
-SELECT id,
+SELECT a.id as id,
        id_captured_reference,
        description,
        action_link,
@@ -13,8 +13,10 @@ FROM articles a
 -- :name q-get-article :? :1
 :snip:select WHERE id = :id
 
--- :name q-get-all-articles :? :*
+-- :name q-get-user-articles :? :*
 :snip:select
+JOIN captured_references cr ON cr.id = a.id_captured_reference
+WHERE cr.id_user = :value:user.id
 
 -- :name q-get-article-for-captured-reference :? :1
 :snip:select WHERE id_captured_reference = :id

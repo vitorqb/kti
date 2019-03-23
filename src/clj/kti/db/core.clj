@@ -33,11 +33,8 @@
   ([db params & rest]
    (apply q-get-article db (assoc params :select (snip-select-article) rest))))
 
-(defn get-all-articles
-  ([] (get-all-articles {}))
-  ([params] (q-get-all-articles (assoc params :select (snip-select-article))))
-  ([db params & rest]
-   (apply q-get-all-articles (assoc params :select (snip-select-article) rest))))
+(defn get-user-articles [params]
+  (q-get-user-articles (assoc params :select (snip-select-article))))
 
 (defn get-article-for-captured-reference [params]
   (q-get-article-for-captured-reference

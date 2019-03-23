@@ -108,9 +108,8 @@
 
 (defn count-tags [] (get (db/count-tags) (keyword "count(*)")))
 
-(defn get-all-articles
-  []
-  (map parse-article-data (db/get-all-articles)))
+(defn get-user-articles [user]
+  (map parse-article-data (db/get-user-articles {:user user})))
 
 (defn get-article
   [id]
