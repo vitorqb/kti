@@ -15,6 +15,8 @@
             [mount.core :as mount]
             [clojure.java.jdbc :as jdbc]))
 
+(declare create-test-user!)
+
 ;; Misc
 (defn body->map
   "Converts a response body into a map. Assumes it is json."
@@ -49,6 +51,7 @@
   ([data] (-> data
               (set-default :reference  "A Reference")
               (set-default :created-at (utils/str->date "2018-01-01T12:12:23"))
+              (set-default-fn :user    create-test-user!)
               service-captured-references/create-captured-reference!)))
 
 (defn get-article-data

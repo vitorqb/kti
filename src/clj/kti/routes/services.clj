@@ -3,7 +3,8 @@
             [kti.routes.services.captured-references.base :refer :all]
             [kti.routes.services.articles
              :refer [get-user-articles get-article create-article! update-article!
-                     article-exists? delete-article!]]
+                     article-exists? delete-article!
+                     ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID]]
             [kti.routes.services.articles.base
              :refer [get-article-for-captured-reference]]
             [kti.routes.services.reviews
@@ -153,30 +154,39 @@
               (ok article)))))
 
       (POST "/articles" []
-        :return       Article
-        :body         [article-data ArticleInput]
+        :return        Article
+        :header-params [authorization :- s/Str]
+        :body          [{:keys [id-captured-reference] :as data} ArticleInput]
         :summary      "POST for article"
-        (let [res (create-article! article-data)]
-          (match [(kti-error? res) res]
-            [true  err] (bad-request err)
-            [false id]  (created (str "/articles/" id) (get-article id)))))
+        (fn [r]
+          (let-auth? [user r]
+            (let [res (create-article! data user)]
+              (match [(kti-error? res) res]
+                [true  err] (bad-request err)
+                [false id]  (created (str "/articles/" id) (get-article id)))))))
 
       (PUT "/articles/:id" [id]
-        :return  Article
-        :body    [data ArticleInput]
-        :summary "PUT for article"
-        (let-found? [article (get-article id)]
-          (if-let [error (update-article! id data)]
-            (bad-request error)
-            (ok (get-article id)))))
+        :return        Article
+        :header-params [authorization :- s/Str]
+        :body          [data ArticleInput]
+        :summary       "PUT for article"
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [article (get-article id user)]
+              (if-let [error (update-article! id data)]
+                (bad-request error)
+                (ok (get-article id)))))))
 
       (DELETE "/articles/:id" [id]
         :return  []
+        :header-params [authorization :- s/Str]
         :summary "Deletes an article"
-        (let-found? [article (get-article id)]
-          (if-let [error (delete-article! id)]
-            (bad-request error)
-            (ok []))))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [article (get-article id user)]
+              (if-let [error (delete-article! id)]
+                (bad-request error)
+                (ok []))))))
 
       (POST "/reviews" []
         :return        Review

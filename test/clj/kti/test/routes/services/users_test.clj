@@ -5,6 +5,7 @@
             [kti.test.helpers :refer :all]
             [kti.routes.services.users :refer :all]
             [kti.routes.services.users.base :refer :all]
+            [kti.routes.services.articles :refer [get-article]]
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]))
 
@@ -53,4 +54,8 @@
     (let [user (get-user (create-test-user!))
           cap-ref (get-captured-reference
                    (create-test-captured-reference! {:user user}))]
-      (is (= user (get-user-for :captured-reference cap-ref))))))
+      (is (= user (get-user-for :captured-reference cap-ref)))))
+  (testing "article"
+    (let [user (get-user (create-test-user!))
+          article (get-article (create-test-article! :user user))]
+      (is (= user (get-user-for :article article))))))

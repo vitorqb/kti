@@ -31,4 +31,4 @@ SELECT u.id, u.email
 FROM users u
 JOIN captured_references c
 ON u.id = c.id_user
-WHERE u.id == :id
+WHERE c.id == :id
