@@ -91,20 +91,18 @@
       (is (= (:classified parsed)
              false)))))
 
-(deftest test-get-all-captured-references
-  (db/delete-all-captured-references)
-  (let [references ["ref one" "ref two"]
-        datetime-str "2018-01-01T00:00:00"]
-    (doseq [reference references]
-      (db/create-captured-reference! {:reference reference
-                                      :created-at datetime-str
-                                      :id-user 1}))
-    (let [all-captured-references (get-all-captured-references)]
-      (is (= (count all-captured-references) (count references)))
-      (is (= (set (map :reference all-captured-references))
-             (set references)))
-      (is (= (set (map :created-at all-captured-references))
-             #{(utils/str->date datetime-str)})))))
+(deftest test-get-user-captured-references
+  (let [user (get-user (create-test-user!))]
+    (testing "Empty" (is (= [] (get-user-captured-references user))))
+      (let [cap-ref1 (get-captured-reference
+                      (create-test-captured-reference! {:user user}))
+            cap-ref2 (get-captured-reference
+                      (create-test-captured-reference! {:user user}))]
+        (testing "See his own"
+          (is (= [cap-ref1 cap-ref2] (get-user-captured-references user))))
+        (testing "Don't see other user's"
+          (is (= [] (get-user-captured-references
+                     (get-user (create-test-user!)))))))))
 
 (deftest test-get-captured-reference
   (db/delete-all-articles)
