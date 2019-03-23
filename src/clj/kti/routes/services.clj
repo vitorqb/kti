@@ -112,10 +112,10 @@
                             (get-captured-reference id)))))))
 
       (PUT "/captured-references/:id" [id]
-        :return       CapturedReference
+        :return        CapturedReference
         :header-params [authorization :- s/Str]
-        :body-params  [reference :- s/Str]
-        :summary      "Put for a captured reference"
+        :body-params   [reference :- s/Str]
+        :summary       "Put for a captured reference"
         (fn [r]
           (let-auth? [user r]
             (let-found? [captured-reference (get-captured-reference id user)]
@@ -123,13 +123,15 @@
                 (bad-request err)
                 (ok (get-captured-reference id user)))))))
 
-      ;; !!!! TODO -> Implement auth header
       (DELETE "/captured-references/:id" [id]
-        :summary "Deletes a captured reference"
-        (let-found? [captured-reference (get-captured-reference id)]
-          (if-let [err (delete-captured-reference! id)]
-            (bad-request err)
-            (ok []))))
+        :header-params [authorization :- s/Str]
+        :summary       "Deletes a captured reference"
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [captured-reference (get-captured-reference id user)]
+              (if-let [err (delete-captured-reference! id)]
+                (bad-request err)
+                (ok []))))))
 
       (GET "/articles" []
         :return       [Article]
