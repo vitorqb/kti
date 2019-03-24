@@ -1,6 +1,7 @@
 (ns kti.routes.services.articles
   (:require [kti.routes.services.articles.base
-             :refer [parse-article-data get-article-for-captured-reference]]
+             :refer [parse-article-data get-article-for-captured-reference
+                     get-article]]
             [kti.db.core :as db :refer [*db*]]
             [kti.routes.services.captured-references.base :refer [get-captured-reference]]
             [kti.routes.services.reviews.base :refer [get-review-for-article]]
@@ -8,7 +9,7 @@
             [kti.validation :refer [validate]]
             [clojure.java.jdbc :refer [with-db-transaction]]))
 
-(declare get-all-tags create-tag! get-article)
+(declare get-all-tags create-tag!)
 
 (def MAX_TAG_LENGTH 49)
 (def MIN_TAG_LENGTH 2)
@@ -120,10 +121,6 @@
 
 (defn get-user-articles [user]
   (map parse-article-data (db/get-user-articles {:user user})))
-
-(defn get-article
-  ([id] (get-article id nil))
-  ([id user] (some-> {:id id :user user} db/get-article parse-article-data)))
 
 (defn get-tags-for-article [article]
   (->> (db/get-tags-for-article article) (map :id_tag) (into #{})))

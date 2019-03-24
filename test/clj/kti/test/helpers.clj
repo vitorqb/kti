@@ -12,6 +12,7 @@
             [kti.routes.services.users.base :refer [create-user!]]
             [kti.routes.services.users :refer [get-user]]
             [kti.routes.services.tokens :refer [gen-token create-token!]]
+            [kti.routes.services.reviews :refer [create-review!]]
             [mount.core :as mount]
             [clojure.java.jdbc :as jdbc]))
 
@@ -109,6 +110,22 @@
               (set-default :feedback-text "Feedback text...")
               (set-default :status :in-progress))))
 
+(defn create-test-review! [& key-vals]
+  (let [raw-data (apply hash-map key-vals)]
+    (assert (not (and (raw-data :user) (raw-data :id-article))))
+    (let [data (if-let [user (:user raw-data)]
+                 (assoc raw-data :id-article (create-test-article! :user user))
+                 raw-data)
+          keys [:id-article :feedback-text :status]
+          get-default (fn [k] (case k
+                                :id-article (create-test-article!)
+                                :feedback-text "Feed my back text"
+                                :status :in-progress))
+          {:keys [error-msg] :as id}
+          (create-review!
+           (into {} (map (fn [k] [k (or (k data) (get-default k))]) keys)))]
+      (assert (nil? error-msg) (str "Failed to create review for test: " error-msg))
+      id)))
 
 ;; Fixtures
 (defn fixture-start-app-and-env
