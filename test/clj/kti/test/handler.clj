@@ -429,24 +429,34 @@
     (testing "404 if form other user"
       (is (not-found? (run-request (create-test-review!) token))))))
 
-(deftest test-get-reviews
-  (db/delete-all-reviews)
-  (let [article-id (create-test-article!)
-        review (-> {:id-article article-id}
-                   get-review-data
-                   create-review!
-                   get-review)]
-    (testing "Getting a single review"
-      (let [response (app (request :get (str "/api/reviews/" (:id review))))
-            body (-> response :body body->map)]
-        (is (ok? response))
-        (is (= (ring-schema/coerce! Review body) review))))
+(deftest test-get-single-review
+  (letfn [(run-request [id token] (-> (request :get (str "/api/reviews/" id))
+                                      (cond-> token (auth-header token))
+                                      app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))
+          review (get-review (create-test-review! :user user))
+          response (run-request (:id review) token)
+          body (-> response :body body->map)]
+      (is (ok? response))
+      (is (= (ring-schema/coerce! Review body) review))
+      (is (not-found? (run-request 99999 token)))
+      (is (not-found? (run-request (create-test-review!) token))))))
 
-    (testing "Getting all reviews"
-      (let [response (app (request :get "/api/reviews"))
-            body (-> response :body body->map)]
-        (is (ok? response))
-        (is (= (map #(ring-schema/coerce! Review %) body) [review]))))))
+(deftest test-get-many-reviews
+  (let [user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))
+        review (get-review (create-test-review! :user user))
+        run-request #(-> (request :get "/api/reviews")
+                         (cond-> % (auth-header %))
+                         app)
+        response (run-request token)
+        body (-> response :body body->map)]
+    (is (ok? response))
+    (is (= (map #(ring-schema/coerce! Review %) body) [review]))
+    (is (= [] (-> (run-request (get-token-value (create-test-token!)))
+                  :body
+                  body->map)))))
 
 
 (deftest test-post-token

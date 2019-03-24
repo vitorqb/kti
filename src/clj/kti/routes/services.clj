@@ -9,7 +9,7 @@
              :refer [get-article-for-captured-reference get-article]]
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews update-review!
-                     delete-review!]]
+                     delete-review! get-user-reviews]]
             [kti.routes.services.tokens :refer [give-token!]]
             [kti.validation :refer [kti-error?]]
             [ring.util.http-response :refer :all]
@@ -226,13 +226,20 @@
 
       (GET "/reviews" []
         :return        [Review]
+        :header-params [authorization :- s/Str]
         :summary       "GET for reviews"
-        (ok (get-all-reviews)))
+        (fn [r]
+          (let-auth? [user r]
+            (ok (get-user-reviews user)))))
 
       (GET "/reviews/:id" [id]
         :return        Review
+        :header-params [authorization :- s/Str]
         :summary       "GET for a single review"
-        (let-found? [review (get-review id)] (ok review)))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [review (get-review id user)]
+              (ok review)))))
 
       (POST "/token" []
         :body-params [email :- s/Str]

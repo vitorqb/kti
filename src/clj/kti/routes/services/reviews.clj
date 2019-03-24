@@ -53,3 +53,5 @@
   ([id user] (some-> {:id id :user user} db/get-review parse-review)))
 
 (def get-all-reviews (comp (partial map parse-review) db/get-all-reviews))
+
+(defn get-user-reviews [user] (map parse-review (db/get-user-reviews user)))
