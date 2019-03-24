@@ -34,6 +34,11 @@
        (do ~@body)
        (unauthorized))))
 
+(defmacro match-err {:style/indent 1} [var & clauses]
+  `(let [res# ~var]
+     (match [(kti-error? res#) res#]
+       ~@clauses)))
+
 ;;
 ;; Schemas
 ;; 
@@ -107,12 +112,11 @@
         :summary      "Creates a captured reference"
         (fn [r]
           (let-auth? [user r]
-            (let [res (create-captured-reference! {:reference reference :user user})]
-              (match [(kti-error? res) res]
-                [true err] (bad-request err)
-                [false id] (created
-                            (str "/captured-references/" id)
-                            (get-captured-reference id)))))))
+            (match-err (create-captured-reference! {:reference reference :user user})
+              [true err] (bad-request err)
+              [false id] (created
+                          (str "/captured-references/" id)
+                          (get-captured-reference id))))))
 
       (PUT "/captured-references/:id" [id]
         :return        CapturedReference
@@ -160,10 +164,9 @@
         :summary      "POST for article"
         (fn [r]
           (let-auth? [user r]
-            (let [res (create-article! data user)]
-              (match [(kti-error? res) res]
-                [true  err] (bad-request err)
-                [false id]  (created (str "/articles/" id) (get-article id)))))))
+            (match-err (create-article! data user)
+              [true  err] (bad-request err)
+              [false id]  (created (str "/articles/" id) (get-article id))))))
 
       (PUT "/articles/:id" [id]
         :return        Article
