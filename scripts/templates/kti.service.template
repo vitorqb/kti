@@ -1,0 +1,11 @@
+[Unit]
+Description=KTI Server
+
+[Service]
+Restart=on-failure
+WorkingDirectory=${DEST}
+ExecStart=${START}
+Environment="DATABASE_URL=${DB}"
+
+[Install]
+WantedBy=multi-user.target
