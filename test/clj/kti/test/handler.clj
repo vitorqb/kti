@@ -21,7 +21,7 @@
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
-             :refer [create-article! get-article
+             :refer [create-article! get-article get-user-articles
                      ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
                      ERR-MSG-ARTICLE-HAS-REVIEW]]
             [kti.routes.services.reviews
@@ -236,77 +236,97 @@
     
         
 (deftest test-post-article
-  (clean-articles-and-tags)
-  (let [captured-ref-id (create-test-captured-reference!)
-        data (get-article-data {:id-captured-reference captured-ref-id})]
+  (let [user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))
+        data (get-article-data
+              {:id-captured-reference
+               (create-test-captured-reference! {:user user})})
+        run-request #(-> (request :post "/api/articles")
+                         (cond-> %1 (json-body %1))
+                         (cond-> %2 (auth-header %2))
+                         app)]
     (testing "Base"
-      (let [response (-> (request :post "/api/articles")
-                         (json-body data)
-                         (app))
-            body (-> response :body body->map)]
+      (let [response (run-request data token)
+            {id :id :as body} (-> response :body body->map)]
         (is (= (:status response) 201))
-        (is (integer? (:id body)))
-        (is (= (-> body (dissoc :id) (update :tags set)) data))))
+        (is (integer? id))
+        (is (= (-> body (dissoc :id) (update :tags set)) data))
+        (is (= (ring-schema/coerce! Article body)
+               (get-article id user)))
+        (is (= [(ring-schema/coerce! Article body)]
+               (get-user-articles user)))))
     (testing "400"
-      (let [unkown-captured-ref-id 999]
-        (assert (nil? (get-captured-reference unkown-captured-ref-id)))
-        (let [wrong-data
-              (assoc data :id-captured-reference unkown-captured-ref-id)
-              response (-> (request :post "/api/articles")
-                           (json-body wrong-data)
-                           (app))]
-          (is (= (response :status) 400))
-          (is (= (-> response :body body->map)
-                 {:error-msg (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
-                              unkown-captured-ref-id)})))))))
+      (let [unkown-captured-ref-id 999
+            wrong-data (assoc data :id-captured-reference unkown-captured-ref-id)
+            response (run-request wrong-data token)]
+        (is (= (response :status) 400))
+        (is (= (-> response :body body->map)
+               {:error-msg (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                            unkown-captured-ref-id)}))))
+    (testing "Authz required"
+      (is (missing-auth? (run-request data nil))))
+    (testing "400 on captured ref from other user id"
+      (let [other-user-cap-ref-id (create-test-captured-reference!)
+            data (get-article-data {:id-captured-reference other-user-cap-ref-id})]
+        (is (= 400 (:status (run-request data token))))))))
 
 (deftest test-delete-article
-  (letfn [(run-request [id] (app (request :delete (str "/api/articles/" id))))]
-    (testing "Base"
-      (let [id (create-test-article!)
-            response (run-request id)]
-        (is (ok? response))
-        (is (empty-response? response)))
+  (letfn [(run-request [id token] (-> (request :delete (str "/api/articles/" id))
+                                      (cond-> token (auth-header token))
+                                      app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))]
+      (testing "Base"
+        (let [id (create-test-article! :user user) response (run-request id token)]
+          (is (ok? response))
+          (is (empty-response? response))
+          (is (nil? (get-article id)))))
       (testing "404"
         (let [id 92837]
           (assert (nil? (get-article id)))
-          (is (not-found? (run-request id)))))
-      (testing "400"
-        (testing "Has review"
-          (let [id-article (create-test-article!)
-                id-review (create-review! (get-review-data {:id-article id-article}))
-                response (run-request id-review)]
-            (is (= 400 (response :status)))
-            (is (= ERR-MSG-ARTICLE-HAS-REVIEW
-                   (-> response :body body->map :error-msg)))))))))
+          (is (not-found? (run-request id token)))))
+      (testing "400 (has review)"
+        (let [id-article (create-test-article! :user user)
+              id-review (create-review! (get-review-data {:id-article id-article}))
+              response (run-request id-review token)]
+          (is (= 400 (response :status)))
+          (is (= ERR-MSG-ARTICLE-HAS-REVIEW
+                 (-> response :body body->map :error-msg)))))
+      (testing "Missing auth" (is (missing-auth? (run-request 1 nil))))
+      (testing "404 if belongs to other user"
+        (let [id (create-test-article!)]
+          (is (not-found? (run-request id token))))))))
 
 (deftest test-put-article
-  (testing "put"
-    (let [captured-ref-id (create-test-captured-reference!)
-          new-captured-ref-id (create-test-captured-reference!)
+  (letfn [(run-request [id data token]
+            (-> (request :put (str "/api/articles/" id))
+                (cond-> data (json-body data))
+                (cond-> token (auth-header token))
+                app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))
+          captured-ref-id (create-test-captured-reference! {:user user})
+          new-captured-ref-id (create-test-captured-reference! {:user user})
           {id :id :as article} (get-article (create-test-article!
                                              :id-captured-reference
                                              captured-ref-id))
           new-data {:id-captured-reference new-captured-ref-id
                     :description "new description"
                     :action-link nil
-                    :tags #{"tag-a" "tag-b"}}
-          response (as-> article it
-                     (:id it)
-                     (str "/api/articles/" it)
-                     (request :put it)
-                     (json-body it new-data)
-                     (app it))
-          body (-> response :body body->map)]
-      (is (= (ring-schema/coerce! Article body)
-             (assoc new-data :id (:id article))))
+                    :tags #{"tag-a" "tag-b"}}]
+      (testing "base"
+        (let [response (run-request id new-data token)
+              body (-> response :body body->map)]
+          (is (ok? response))
+          (is (= (ring-schema/coerce! Article body) (assoc new-data :id id)))))
       (testing "error"
         (let [invalid-captured-reference-id 98765
-              response (app (-> (request :put (str "/api/articles/" id))
-                                (json-body
-                                 (assoc new-data
-                                        :id-captured-reference
-                                        invalid-captured-reference-id))))]
+              response (run-request
+                        id
+                        (assoc new-data
+                               :id-captured-reference
+                               invalid-captured-reference-id)
+                        token)]
           (assert (nil? (get-captured-reference invalid-captured-reference-id)))
           (is (= (response :status) 400))
           (is (= (-> response :body body->map :error-msg)
@@ -314,11 +334,12 @@
       (testing "not found"
         (let [id 829]
           (is (nil? (get-article id)))
-          (is (not-found? (as-> id it
-                            (str "/api/articles/" it)
-                            (request :put it)
-                            (json-body it new-data)
-                            (app it)))))))))
+          (is (not-found? (run-request id new-data token)))))
+      (testing "404 if other user"
+        (is (not-found?
+             (run-request id new-data (get-token-value (create-test-token!))))))
+      (testing "Auth missing"
+        (is (missing-auth? (run-request id new-data nil)))))))
 
 (deftest test-post-reviews
   (let [article-id (create-test-article!)]

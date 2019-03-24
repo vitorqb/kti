@@ -56,8 +56,9 @@
              (get-article-for-captured-reference captured-reference))))))
 
 (deftest test-update-article
-  (let [article-id (create-test-article!)
-        new-captured-ref-id (create-test-captured-reference!)
+  (let [user (get-user (create-test-user!))
+        article-id (create-test-article! :user user)
+        new-captured-ref-id (create-test-captured-reference! {:user user})
         new-data {:id-captured-reference new-captured-ref-id
                   :description "blabla"
                   :action-link "www.goo.nl"
@@ -84,7 +85,15 @@
                (->KtiError "bar")))))
 
     (testing "Updating to the same values is okay"
-      (is (= nil (update-article! article-id (get-article article-id)))))))
+      (is (= nil (update-article! article-id (get-article article-id)))))
+
+    (testing "Updating to a captured ref from other user fails"
+      (let [id-new-cap-ref (create-test-captured-reference!)]
+        (is (= (->KtiError (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
+                            id-new-cap-ref))
+               (update-article!
+                article-id
+                (assoc new-data :id-captured-reference id-new-cap-ref))))))))
 
 (deftest test-delete-article
   (testing "Base"
@@ -232,7 +241,15 @@
         (is (= (->KtiError "foo")
                (-> {:id-captured-reference id-captured-reference}
                    get-article-data
-                   create-article!)))))))
+                   create-article!))))))
+
+  (testing "Fails if captured ref belongs to other user"
+    (with-redefs [validate-article-captured-reference-belongs-to-user
+                  (fn [& _] "baz")]
+      (is (= (->KtiError "baz")
+             (create-article! (get-article-data
+                               {:id-captured-reference
+                                (create-test-captured-reference!)})))))))
 
 (deftest test-tag-exists?
   (let [tag "some-weeeeird-tag" do-tag-exists? #(tag-exists? tag)]
