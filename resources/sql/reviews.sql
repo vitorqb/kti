@@ -17,6 +17,13 @@ VALUES (:id-article, :feedback-text, :status)
 -- :name get-all-reviews :? :*
 SELECT id, id_article, feedback_text, status FROM reviews
 
+-- :name get-user-reviews :? :*
+SELECT r.id, r.id_article, r.feedback_text, r.status
+FROM reviews r
+JOIN articles a ON a.id = r.id_article
+JOIN captured_references c ON c.id = a.id_captured_reference
+WHERE c.id_user = :id
+
 -- :name delete-all-reviews :!
 DELETE FROM reviews
 
