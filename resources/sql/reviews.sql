@@ -1,6 +1,11 @@
 -- :name get-review :? :1
 -- :doc retrieves an review given an id
-SELECT id, id_article, feedback_text, status FROM reviews WHERE id = :id
+SELECT r.id, r.id_article, r.feedback_text, r.status
+FROM reviews r
+--~ (if (:user params) "JOIN articles a ON a.id = r.id_article")
+--~ (if (:user params) "JOIN captured_references c ON c.id = a.id_captured_reference")
+WHERE r.id = :id
+--~ (if (:user params) "AND c.id_user = :value:user.id")
 
 -- :name get-review-for-article :? :1
 SELECT id, id_article, feedback_text, status FROM reviews WHERE id_article = :id

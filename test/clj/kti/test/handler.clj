@@ -21,11 +21,12 @@
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
-             :refer [create-article! get-article get-user-articles
+             :refer [create-article! get-user-articles
                      ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID
                      ERR-MSG-ARTICLE-HAS-REVIEW]]
+            [kti.routes.services.articles.base :refer [get-article]]
             [kti.routes.services.reviews
-             :refer [create-review! get-review]]
+             :refer [create-review! get-review INVALID-ID-ARTICLE]]
             [kti.routes.services.users :refer [get-user get-user-for]]
             [kti.utils :as utils]
             [kti.middleware.formats :as formats]
@@ -342,60 +343,91 @@
         (is (missing-auth? (run-request id new-data nil)))))))
 
 (deftest test-post-reviews
-  (let [article-id (create-test-article!)]
-    (testing "Post data (base)"
-      (let [data (get-review-data {:id-article article-id})
-            response (-> (request :post "/api/reviews")
-                         (json-body data)
-                         (app))
-            body (-> response :body body->map)]
-        (is (= (:status response) 201))
-        (is (integer? (:id body)))
-        (is (= (-> body (dissoc :id) (update :status keyword))
-               data))))))
+  (letfn [(run-request [data token] (-> (request :post "/api/reviews")
+                                        (json-body data)
+                                        (cond-> token (auth-header token))
+                                        app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))
+          article-id (create-test-article! :user user)]
+      (testing "Post data (base)"
+        (let [data (get-review-data {:id-article article-id})
+              response (run-request data token)
+              body (-> response :body body->map)]
+          (is (= (:status response) 201))
+          (is (integer? (:id body)))
+          (is (= (-> body (dissoc :id) (update :status keyword))
+                 data))))
+      (testing "Post with article from other user returns 400"
+        (let [id-article (create-test-article!)
+              data (get-review-data {:id-article id-article})
+              response (run-request data token)]
+          (is 400 (:status response))
+          (is (= {:error-msg (INVALID-ID-ARTICLE id-article)}
+                 (-> response :body body->map)))))
+      (testing "Post with unkown article returns 400"
+        (let [id-article 12321
+              data (get-review-data {:id-article id-article})
+              response (run-request data token)]
+          (is 400 (:status response))
+          (is (= {:error-msg (INVALID-ID-ARTICLE id-article)}
+                 (-> response :body body->map)))))
+      (testing "Missing auth"
+        (is (missing-auth? (run-request (get-review-data) nil)))))))
 
 (deftest test-put-reviews
-  (let [new-captured-reference-id (create-test-captured-reference!)
-        new-article-id (create-test-article!)
-        new-data {:id-article new-article-id
-                  :feedback-text "new feedback text!!!"
-                  :status :discarded}]
-    (testing "Not found"
-      (let [inexistant-id 12928]
-        (assert (nil? (get-review inexistant-id)))
-        (is (not-found? (as-> inexistant-id it
-                          (str "/api/reviews/" it)
-                          (request :put it)
-                          (json-body it new-data)
-                          (app it)))))
-    (testing "Found")
-      (let [captured-reference-id (create-test-captured-reference!)
-            article-id (create-test-article!)
-            review-id (create-review! (get-review-data {:id-article article-id}))
-            response (as-> review-id it
-                       (str "/api/reviews/" it)
-                       (request :put it)
-                       (json-body it new-data)
-                       (app it))
-            body (-> response :body body->map)]
-        (is (ok? response))
-        (is (= (ring-schema/coerce! Review body)
-               (get-review review-id)
-               (assoc new-data :id review-id)))))))
+  (letfn [(run-request [id data token] (-> (request :put (str "/api/reviews/" id))
+                                           (json-body data)
+                                           (cond-> token (auth-header token))
+                                           app))]
+    (let [user (get-user (create-test-user!))
+          token (get-token-value (create-test-token! user))
+          new-captured-reference-id (create-test-captured-reference!)
+          new-article-id (create-test-article! :user user)
+          new-data {:id-article new-article-id
+                    :feedback-text "new feedback text!!!"
+                    :status :discarded}]
+      (testing "Not found"
+        (let [inexistant-id 12928]
+          (assert (nil? (get-review inexistant-id)))
+          (is (not-found? (run-request inexistant-id new-data token)))))
+      (testing "Found"
+        (let [review-id (create-test-review! :user user)
+              response (run-request review-id new-data token)
+              body (-> response :body body->map)]
+          (is (ok? response))
+          (is (= (ring-schema/coerce! Review body)
+                 (get-review review-id)
+                 (assoc new-data :id review-id)))))
+      (testing "Auth req.ed"
+        (is (missing-auth? (run-request 1 new-data nil))))
+      (testing "Can't put for other user"
+        (is (not-found? (run-request (create-test-review!) new-data token))))
+      (testing "Can't set article of other user"
+        (let [id-article (create-test-article!)
+              new-data (assoc new-data :id-article id-article)
+              response (run-request (create-test-review! :user user) new-data token)]
+          (is (= 400 (:status response)))
+          (is (= {:error-msg (INVALID-ID-ARTICLE id-article)}
+                 (-> response :body body->map))))))))
 
 (deftest test-delete-review
-  (let [run-request #(app (request :delete (str "/api/reviews/" %)))]
+  (let [run-request #(-> (request :delete (str "/api/reviews/" %1))
+                         (cond-> %2 (auth-header %2))
+                         app)
+        user (get-user (create-test-user!))
+        token (get-token-value (create-test-token! user))]
     (testing "Base"
-      (let [id (->> (create-test-article!)
-                    (hash-map :id-article)
-                    get-review-data
-                    create-review!)          
-            response (run-request id)]
+      (let [id (create-test-review! :user user) response (run-request id token)]
         (is (ok? response))
         (is (nil? (get-review id)))))
     (testing "404"
       (let [id 2938]
-        (is (not-found? (app (request :delete (str "/api/reviews/" id)))))))))
+        (is (not-found? (run-request id token)))))
+    (testing "Auth req"
+      (is (missing-auth? (run-request 1 nil))))
+    (testing "404 if form other user"
+      (is (not-found? (run-request (create-test-review!) token))))))
 
 (deftest test-get-reviews
   (db/delete-all-reviews)

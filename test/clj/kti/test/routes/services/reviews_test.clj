@@ -2,9 +2,12 @@
   (:require [clojure.test :refer :all]
             [kti.routes.services.reviews :refer :all]
             [kti.routes.services.reviews.base :refer :all]
+            [kti.routes.services.users :refer [get-user]]
+            [kti.validation :refer [->KtiError]]
             [kti.test.helpers :refer :all]
             [kti.routes.services.articles
-             :refer [article-exists? create-article! get-article]]
+             :refer [article-exists? create-article!]]
+            [kti.routes.services.articles.base :refer [get-article]]
             [kti.db.core :refer [*db*] :as db]
             [clojure.java.jdbc :refer [insert!]]))
 
@@ -26,7 +29,13 @@
           :feedback-text (:feedback_text data)
           :status :completed))))
   (testing "missing"
-    (is (nil? (get-review 21397218397)))))
+    (is (nil? (get-review 21397218397))))
+  (testing "with user"
+    (let [user (get-user (create-test-user!))
+          id (create-test-review! :user user)]
+      (is ((comp not nil?) (get-review id user)))
+      (is (= (get-review id) (get-review id user)))
+      (is (nil? (get-review (create-test-review!) user))))))
 
 (deftest test-parse-review
   (let [data {:id_article 12
@@ -57,24 +66,35 @@
 
     (testing "Error if invalid status"
       (let [data (get-review-data {:id-article article-id :status :invalid})]
-        (is (thrown? AssertionError (create-review! data)))))
+        (is (= (->KtiError (INVALID-REVIEW-STATUS :invalid))
+               (create-review! data)))))
 
     (testing "Uses validate-review-status"
       (let [args (atom nil) data (get-review-data {:id-article article-id})]
-        (with-redefs [validate-review-status #(reset! args %&)]
-          (create-review! data)
-          (is (= @args (list (:status data)))))))
+        (with-redefs [validate-review-status #(do (reset! args %&) "baz")]
+          (is (= (->KtiError "baz") (create-review! data)))
+          (is (= @args (list data))))))
 
-    (testing "Uses validate-article-captured-reference-exists"
+    (testing "Uses validate-id-article"
       (let [args (atom nil) data (get-review-data {:id-article article-id})]
-        (with-redefs [validate-id-article #(reset! args %&)]
-          (create-review! data)
-          (is (= @args (list article-id))))))
+        (with-redefs [validate-id-article #(do (reset! args %&) "foo")]
+          (is (= (->KtiError "foo") (create-review! data)))
+          (is (= @args (list data))))))
 
-    (testing "Error is article does not exists"
-      (with-redefs [article-exists? (fn [_] false)]
-        (is (thrown? clojure.lang.ExceptionInfo
-                     (create-review! (get-review-data))))))))
+    (testing "Uses validate-article-belongs-to-user"
+      (let [user :user
+            args (atom nil)
+            data (get-review-data {:id-article (create-test-article!)})]
+        (with-redefs [validate-article-belongs-to-user
+                      #(do (reset! args %&) "bar")]
+          (is (= (->KtiError "bar") (create-review! data user)))
+          (is (= @args (list user data))))))
+
+    (testing "Error if article does not exists"
+      (let [data (get-review-data)]
+        (with-redefs [article-exists? (fn [_] false)]
+          (is (= (->KtiError (INVALID-ID-ARTICLE (:id-article data)))
+                 (create-review! data))))))))
 
 (deftest test-get-all-reviews
   (db/delete-all-reviews)
@@ -88,36 +108,48 @@
 
 
 (deftest test-validate-review-status
-  (is (thrown? AssertionError (validate-review-status :not-a-valid-status)))
-  (doseq [s review-status] (is (nil? (validate-review-status s)))))
+  (is (= (INVALID-REVIEW-STATUS :not-a-valid-status)
+         (validate-review-status {:status :not-a-valid-status})))
+  (doseq [s review-status] (is (nil? (validate-review-status {:status s})))))
 
 (deftest test-validate-id-article
-  (is (thrown-with-msg?
-       clojure.lang.ExceptionInfo
-       #"Article with id .+ does not exists"
-       (validate-id-article "not-a-valid-id")))
+  (is (= "Article with id not-a-valid-id does not exists"
+         (validate-id-article {:id-article "not-a-valid-id"})))
   (let [article-id (create-test-article!)]
-    (is (nil? (validate-id-article article-id)))))
+    (is (nil? (validate-id-article {:id-article article-id})))))
+
+(deftest test-validate-article-belongs-to-user
+  (let [user (get-user (create-test-user!))]
+    (is (nil? (validate-article-belongs-to-user
+               user
+               (get-review (create-test-review! :user user)))))
+    (let [id (create-test-review!)]
+      (is (= (INVALID-ID-ARTICLE id)
+             (validate-article-belongs-to-user
+              user
+              (get-review id)))))))
 
 (deftest test-update-review!
-  (let [article-id (create-test-article!)
+  (let [user (get-user (create-test-user!))
+        article-id (create-test-article! :user user)
         review-id (create-review! (get-review-data {:id-article article-id}))
         new-captured-ref-id (create-test-captured-reference!)
-        new-article-id (create-test-article!)
+        new-article-id (create-test-article! :user user)
         new-data {:id-article new-article-id
                   :feedback-text "NNNewwww feedback"
                   :status :completed}
         validate-id-article-args (atom nil)
         validate-review-status-args (atom nil)]
-    (with-redefs [validate-id-article #(reset! validate-id-article-args %&)
-                  validate-review-status #(reset! validate-review-status-args %&)]
-      (update-review! review-id new-data)
+    (with-redefs [validate-id-article #(do (reset! validate-id-article-args %&) nil)
+                  validate-review-status
+                  #(do (reset! validate-review-status-args %&) nil)]
+      (is (nil? (update-review! review-id new-data)))
 
       (testing "Uses validate-review-status"
-        (is (= @validate-review-status-args (list (:status new-data)))))
+        (is (= (list new-data) @validate-review-status-args)))
 
       (testing "Uses validate-id-article"
-        (is (= @validate-id-article-args (list (:id-article new-data)))))
+        (is (= (list new-data) @validate-id-article-args)))
 
       (testing "Updates values in the db"
         (is (= (get-review review-id)

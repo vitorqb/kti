@@ -32,3 +32,11 @@ FROM users u
 JOIN captured_references c
 ON u.id = c.id_user
 WHERE c.id == :id
+
+-- :name get-user-for-review :? :1
+SELECT u.id, u.email
+FROM users u
+JOIN captured_references c ON u.id = c.id_user
+JOIN articles a ON c.id = a.id_captured_reference
+JOIN reviews r ON a.id = r.id_article
+WHERE r.id = :id

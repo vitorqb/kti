@@ -5,7 +5,8 @@
             [kti.test.helpers :refer :all]
             [kti.routes.services.users :refer :all]
             [kti.routes.services.users.base :refer :all]
-            [kti.routes.services.articles :refer [get-article]]
+            [kti.routes.services.articles.base :refer [get-article]]
+            [kti.routes.services.reviews :refer [get-review]]
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]))
 
@@ -58,4 +59,8 @@
   (testing "article"
     (let [user (get-user (create-test-user!))
           article (get-article (create-test-article! :user user))]
-      (is (= user (get-user-for :article article))))))
+      (is (= user (get-user-for :article article)))))
+  (testing "review"
+    (let [user (get-user (create-test-user!))
+          review (get-review (create-test-review! :user user))]
+      (is (= user (get-user-for :review review))))))

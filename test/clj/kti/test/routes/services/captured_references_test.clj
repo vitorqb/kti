@@ -6,7 +6,6 @@
             [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.captured-references.base
              :refer [parse-retrieved-captured-reference get-captured-reference]]
-            [kti.routes.services.articles :refer [get-article]]
             [kti.routes.services.users :refer [get-user get-user-for]]
             [kti.db.core :refer [*db*] :as db]
             [kti.config :refer [env]]

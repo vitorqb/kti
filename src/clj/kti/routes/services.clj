@@ -2,11 +2,11 @@
   (:require [kti.routes.services.captured-references :refer :all]
             [kti.routes.services.captured-references.base :refer :all]
             [kti.routes.services.articles
-             :refer [get-user-articles get-article create-article! update-article!
+             :refer [get-user-articles create-article! update-article!
                      article-exists? delete-article!
                      ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID]]
             [kti.routes.services.articles.base
-             :refer [get-article-for-captured-reference]]
+             :refer [get-article-for-captured-reference get-article]]
             [kti.routes.services.reviews
              :refer [create-review! get-review get-all-reviews update-review!
                      delete-review!]]
@@ -193,25 +193,36 @@
 
       (POST "/reviews" []
         :return        Review
+        :header-params [authorization :- s/Str]
         :body          [data ReviewInput]
         :summary       "POST for review"
-        (let [id (create-review! data)]
-          (created (str "/reviews/" id) (get-review id))))
+        (fn [r]
+          (let-auth? [user r]
+            (match-err (create-review! data user)
+              [true  err] (bad-request err)
+              [false id]  (created (str "/reviews/" id) (get-review id))))))
 
       (PUT "/reviews/:id" [id]
         :return    Review
+        :header-params [authorization :- s/Str]
         :body      [data ReviewInput]
         :summary   "POST for review"
-        (let-found? [_ (get-review id)]
-          (update-review! id data)
-          (ok (get-review id))))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [_ (get-review id user)]
+              (match-err (update-review! id data)
+                [true err] (bad-request err)
+                [false  _] (ok (get-review id)))))))
 
       (DELETE "/reviews/:id" [id]
         :return  []
+        :header-params [authorization :- s/Str]
         :summary "Deletes a review"
-        (let-found? [_ (get-review id)]
-          (delete-review! id)
-          (ok [])))
+        (fn [r]
+          (let-auth? [user r]
+            (let-found? [_ (get-review id user)]
+              (delete-review! id)
+              (ok [])))))
 
       (GET "/reviews" []
         :return        [Review]

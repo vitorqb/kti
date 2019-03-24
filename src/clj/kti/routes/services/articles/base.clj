@@ -13,3 +13,7 @@
 (defn get-article-for-captured-reference
   [x]
   (some-> (db/get-article-for-captured-reference x) parse-article-data))
+
+(defn get-article
+  ([id] (get-article id nil))
+  ([id user] (some-> {:id id :user user} db/get-article parse-article-data)))
