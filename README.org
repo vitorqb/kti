@@ -1,0 +1,143 @@
+* KTI - Keep This Info
+
+_work in progress_
+
+_generated using Luminus version "3.10.40"_
+
+KTI is a small app to learn web programming in clojure.
+
+It is a backend to make it easy to capture things you want to check later.
+
+** Example
+
+   A (test) live server is available at 159.65.192.68.
+   Here is an example of usage:
+
+   Let's ask for a token to authenticate ourselves:
+
+#+begin_src shell
+curl -H 'Content-Type: application/json' --data '{"email": "<your-email>"}' 159.65.192.68/api/token
+#+end_src
+
+   Go to your email and find you token. Then use it to captured a new reference:
+
+#+begin_src shell :results output verbatim
+curl -H 'Content-Type: application/json' -H 'Authorization: TOKEN <token>' --data  @- 159.65.192.68/api/captured-references <<EOF
+{
+    "reference": "search for book to learn git"
+}
+EOF
+#+end_src
+
+#+begin_example
+{
+  "id": 1,
+  "reference": "search for book to learn git",
+  "created-at": "2019-03-25T19:00:29",
+  "classified": false
+}
+#+end_example
+
+   Now when you have time, get to your sofa and classify this
+   reference into an article so you don't forget what you thought:
+
+#+begin_src shell :results output verbatim
+curl -H 'Content-Type: application/json' -H 'Authorization: TOKEN <token>' --data @- 159.65.192.68/api/articles <<EOF
+{
+    "id-captured-reference": 1,
+    "description": "Read the git book",
+    "action-link": "https://www.google.com/search?client=firefox-b-d&q=git+book",
+    "tags": ["programming", "git", "book"]
+}
+EOF
+#+end_src
+
+#+begin_example
+{
+  "id": 1,
+  "description": "Read the git book",
+  "tags": [
+    "book",
+    "programming",
+    "git"
+  ],
+  "action-link": "https://www.google.com/search?client=firefox-b-d&q=git+book",
+  "id-captured-reference": 1
+}
+#+end_example
+
+   Check all your captured references to check whether you missed something
+
+#+begin_src shell :results output verbatim
+curl -H 'Authorization: TOKEN <token>' 159.65.192.68/api/captured-references | jq
+#+end_src
+
+#+begin_example
+[
+  {
+    "id": 1,
+    "reference": "search for book to learn git",
+    "created-at": "2019-03-25T19:00:29",
+    "classified": true
+  }
+]
+#+end_example
+
+   And check that it is classified now true!
+
+   You found some time and started to read the book! let's record this and
+   start a review.
+
+#+begin_src shell :results output verbatim
+curl -H 'Content-Type: application/json' -H 'Authorization: TOKEN <token>' --data @- 159.65.192.68/api/reviews <<EOF
+{
+    "id-article": 1,
+    "status": "in-progress",
+    "feedback-text": "First pages of The Git Book - looks promising"
+}
+EOF
+#+end_src
+
+#+begin_example
+{
+  "id": 1,
+  "id-article": 1,
+  "feedback-text": "First pages of The Git Book - looks promising",
+  "status": "in-progress"
+}
+#+end_example
+
+   And after a week you gave up because the book was not that interesting. 
+   Let's just discard this entry.
+
+#+begin_src shell :results output verbatim
+curl -XPUT -H 'Content-Type: application/json' -H 'Authorization: TOKEN <token>' --data @- 159.65.192.68/api/reviews/1 | jq <<EOF
+{
+    "id-article": 1,
+    "status": "discarded",
+    "feedback-text": "After reading 20 pages in a week, I give up."
+}
+EOF
+#+end_src
+
+#+begin_example
+{
+  "id-article": 1,
+  "status": "discarded",
+  "feedback-text": "After reading 20 pages in a week, I give up."
+}
+#+end_example
+
+** Prerequisites
+
+You will need [https://github.com/technomancy/leiningen][Lein] 2.0 or above installed.
+
+** Running
+
+To start a web server for the application, run:
+
+    lein run 
+
+** License
+
+Copyright © 2019 Vitor Quintanilha Barbosa (vitorqb@gmail.com)
