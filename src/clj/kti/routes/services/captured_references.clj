@@ -19,7 +19,6 @@
   (when (-> reference count (< REFERENCE-MIN-LENGTH))
     ERR-MSG-REFERENCE-MIN-LENGTH))
 
-;; !!!! TODO -> Make user a mandatory argument
 (defn create-captured-reference! [{:keys [reference created-at user] :as data}]
   (or
    (validate data validate-captured-ref-reference-min-length)
