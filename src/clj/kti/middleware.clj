@@ -6,6 +6,7 @@
             [ring.middleware.flash :refer [wrap-flash]]
             [ring.util.response :refer [get-header]]
             [immutant.web.middleware :refer [wrap-session]]
+            [ring.middleware.cors :refer [wrap-cors]]
             [ring.middleware.defaults :refer [site-defaults wrap-defaults]]))
 
 (defn extract-token [request]
@@ -24,6 +25,8 @@
   (-> ((:middleware defaults) handler)
       wrap-flash
       (wrap-session {:cookie-attrs {:http-only true}})
+      (wrap-cors :access-control-allow-origin [#".*"]
+                 :access-control-allow-methods [:get :put :post :delete])
       (wrap-defaults
         (-> site-defaults
             (assoc-in [:security :anti-forgery] false)
