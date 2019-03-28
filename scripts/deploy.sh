@@ -69,7 +69,19 @@ function send_nginx_config() {
 
 function restart_kti_ngix_service() {
     echo -e "\n\n RESTARTING NGINX SERVICE... \n\n"
-    ssh "$HOST" "systemctl enable nginx; systemctl restart nginx"    
+    ssh "$HOST" "systemctl enable nginx; systemctl restart nginx"
+}
+
+function clean_old_releases() {
+    echo -e "\n\n CLEANING OLD RELEASES \n\n"
+    ssh "$HOST" /bin/bash <<EOF
+cd /kti/releases
+ls | grep -P '^[0-9]{14}$' | sort --reverse | tail -n +5 | while read x
+do
+  echo "Removing \$x"
+  rm -r "\$x"
+done
+EOF
 }
 
 compile \
@@ -82,4 +94,5 @@ compile \
     && send_kti_systemd \
     && restart_kti_service \
     && send_nginx_config \
-    && restart_kti_ngix_service
+    && restart_kti_ngix_service \
+    && clean_old_releases
