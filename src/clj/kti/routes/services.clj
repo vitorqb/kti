@@ -42,11 +42,12 @@
 ;;
 ;; Schemas
 ;; 
-(s/defschema CapturedReference
+(s/defschema CapturedReferenceOutput
   {:id         Integer
    :reference  s/Str
    :created-at java.time.LocalDateTime
-   :classified s/Bool})
+   :classified s/Bool
+   :article-id (s/maybe Integer)})
 
 (s/defschema Article
   {:id                    Integer
@@ -89,7 +90,7 @@
     (context "/api" []
 
       (GET "/captured-references" []
-        :return       [CapturedReference]
+        :return       [CapturedReferenceOutput]
         :header-params [authorization :- s/Str]
         :summary      "Bring all captured references"
         (fn [r]
@@ -97,7 +98,7 @@
             (ok (get-user-captured-references user)))))
 
       (GET "/captured-references/:id" [id]
-        :return       CapturedReference
+        :return       CapturedReferenceOutput
         :header-params [authorization :- s/Str]
         :summary      "Get for a captured reference."
         (fn [r]
@@ -106,7 +107,7 @@
               (ok captured-reference)))))
 
       (POST "/captured-references" []
-        :return        CapturedReference
+        :return        CapturedReferenceOutput
         :header-params [authorization :- s/Str]
         :body-params   [reference :- s/Str]
         :summary      "Creates a captured reference"
@@ -119,7 +120,7 @@
                           (get-captured-reference id))))))
 
       (PUT "/captured-references/:id" [id]
-        :return        CapturedReference
+        :return        CapturedReferenceOutput
         :header-params [authorization :- s/Str]
         :body-params   [reference :- s/Str]
         :summary       "Put for a captured reference"

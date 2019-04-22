@@ -75,12 +75,18 @@
          :reference "reference"
          :created_at (utils/date->str
                       (java-time/local-date-time 2018 1 1 12 22 10))
-         :classified 0}
+         :classified 0
+         :article_id 12}
         parsed (parse-retrieved-captured-reference retrieved)]
 
     (testing "renames created_at -> created-at"
       (is (contains? parsed :created-at))
       (is (not (contains? parsed :created_at))))
+
+    (testing "renames article_id -> article-id"
+      (is (= (:article_id retrieved) (:article-id parsed)))
+      (is (contains? parsed :article-id))
+      (is (not (contains? parsed :article_id))))
 
     (testing "parses date"
       (is (= (:created-at parsed)
@@ -111,8 +117,11 @@
   (testing "Classified is True after an article is created"
     (let [data (-> (create-test-captured-reference!) get-captured-reference)]
       (is (false? (:classified data)))
-      (create-test-article! :id-captured-reference (:id data))
-      (is (true? (-> data :id get-captured-reference :classified)))))
+      (is (nil? (:article-id data)))
+      (let [article-id (create-test-article! :id-captured-reference (:id data))
+            new-data (-> data :id get-captured-reference)]
+        (is (true? (new-data :classified)))
+        (is (= article-id (new-data :article-id))))))
   (testing "Nil when belongs to other user"
     (let [user (get-user (create-test-user!))
           {:keys [id] :as cap-ref}

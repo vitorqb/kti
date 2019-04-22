@@ -8,6 +8,7 @@
                   (case k
                     :classified [k (utils/int-to-bool v)]
                     :created_at [:created-at (utils/str->date v)]
+                    :article_id [:article-id v]
                     [k v]))
                 x)))
 

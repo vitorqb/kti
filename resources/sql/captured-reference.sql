@@ -2,6 +2,7 @@
 SELECT cr.id as id,
        cr.reference as reference,
        cr.created_at as created_at,
+       a.id as article_id,
        CASE
             WHEN a.id IS NULL THEN FALSE ELSE TRUE
        END AS classified
