@@ -1,14 +1,14 @@
 #!/bin/bash
 # Release script for kti
-USAGE="
+USAGE="\
 ./scripts/release.sh <tag> [--no-compile]
 Release script for kti.
 Must be called with a tag as first argument. Creates the tag if needed.
-If the --no-compile flag is parsed, `lein clean` and `lein uberjar`
-are not called, and an appropriate `./target/uberjar/kti.jar` file is
+If the --no-compile flag is parsed, lein clean and lein uberjar
+are not called, and an appropriate ./target/uberjar/kti.jar file is
 assumed to exist.
 
-The file `./scripts/.release_env` must exist and export the env var
+The file ./scripts/.release_env must exist and export the env var
 GITHUB_TOKEN, with the github token that can access github api for the
 kti repo.
 "
@@ -30,7 +30,7 @@ source ./scripts/.release_env
     && exit 1
 
 REPO_URL='https://api.github.com/repos/vitorqb/kti/'
-JARFILE=./target/uberjar/kti.jar
+JARFILE='./target/uberjar/kti.jar'
 
 function compile() {
     echo "-> Compiling..."
@@ -71,7 +71,7 @@ function get_upload_url() {
 function upload_jar() {
     echo "-> Uploading jar..."
     URL="$(get_upload_url)?name=kti.jar"
-    curl -H "Authorization: token $GITHUB_TOKEN" -H 'Content-Type: application/java-archive' --data @$JARFILE $URL
+    curl -H "Authorization: token $GITHUB_TOKEN" -H 'Content-Type: application/java-archive' --data-binary @$JARFILE $URL
 }
 
 # For debugging and development
