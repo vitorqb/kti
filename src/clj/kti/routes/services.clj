@@ -47,7 +47,9 @@
    :reference  s/Str
    :created-at java.time.LocalDateTime
    :classified s/Bool
-   :article-id (s/maybe Integer)})
+   :article-id (s/maybe Integer)
+   :review-id  (s/maybe Integer)
+   :review-status (s/maybe s/Str)})
 
 (s/defschema Article
   {:id                    Integer

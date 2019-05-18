@@ -1,5 +1,6 @@
 (ns kti.utils
-  (:require [java-time]))
+  (:require [java-time]
+            [clojure.string :as str]))
 
 (defn int-to-bool
   [x]
@@ -15,3 +16,4 @@
 (defn seconds-between [x y] (java-time/time-between :seconds x y))
 (defn set-default-fn [m k f] (if (contains? m k) m (assoc m k (f))))
 (defn set-default [m k v] (set-default-fn m k (constantly v)))
+(def string->status (comp keyword str/lower-case))
