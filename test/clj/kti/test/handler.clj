@@ -49,25 +49,53 @@
 
 (deftest test-get-single-captured-reference
   (let [user (get-user (create-test-user!))
-          token (get-token-value (create-test-token! user))
-          {:keys [id reference created-at]}
-          (get-captured-reference
-           (create-test-captured-reference! {:user user}))
-          run-request #(-> (request :get (str "/api/captured-references/" %1))
-                           (cond-> %2 (auth-header %2))
-                           app)]
-      (is (missing-auth? (run-request 1 nil)))
-      (is (not-found? (run-request 213829123 token)))
-      (let [other-user-token (get-token-value (create-test-token!))]
-        (is (not-found? (run-request id other-user-token))))
+        token (get-token-value (create-test-token! user))
+        {:keys [id reference created-at]}
+        (get-captured-reference
+         (create-test-captured-reference! {:user user}))
+        run-request #(-> (request :get (str "/api/captured-references/" %1))
+                         (cond-> %2 (auth-header %2))
+                         app)]
+    (is (missing-auth? (run-request 1 nil)))
+    (is (not-found? (run-request 213829123 token)))
+    (let [other-user-token (get-token-value (create-test-token!))]
+      (is (not-found? (run-request id other-user-token))))
+    (let [response (run-request id token)
+          {:keys [id] :as body} (-> response :body body->map)]
+      (is (ok? response))
+      (are [k v] (= (get body k ::nf) v)
+        :id id
+        :reference reference
+        :created-at (utils/date->str created-at)
+        :classified false
+        :article-id nil
+        :review-id nil
+        :review-status nil)
+      ;; Now the user creates an article
+      (is (ok? (-> (request :post "/api/articles")
+                   (json-body {:id-captured-reference id
+                               :description "Abc"
+                               :tags []
+                               :action-link nil})
+                   (auth-header token)
+                   app)))
+      ;; And sees it on the get
       (let [response (run-request id token)
-            body (-> response :body body->map)]
-        (is (ok? response))
-        (are [k v] (= (k body) v)
-          :id id
-          :reference reference
-          :created-at (utils/date->str created-at)
-          :classified false))))
+            {:keys [article-id classified]} (-> response :body body->map)]
+        (is (not (nil? article-id)))
+        (is (true? classified))
+        ;; It finally creates a review
+        (is (ok? (-> (request :post "/api/reviews")
+                     (json-body {:id-article article-id
+                                 :status "in-progress"
+                                 :feedback-text ""})
+                     (auth-header token)
+                     app)))
+        ;; And sees it on the get
+        (let [response (run-request id token)
+              {:keys [review-id review-status]} (-> response :body body->map)]
+          (is (not (nil? review-id)))
+          (is (= "in-progress" review-status)))))))
 
 (deftest test-get-all-captured-reference
   (letfn [(run-get [token]

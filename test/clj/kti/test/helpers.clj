@@ -24,7 +24,7 @@
   [json-body]
   (cheshire/parse-string (slurp json-body) true))
 (defn not-found? [response] (= 404 (:status response)))
-(defn ok? [response] (= 200 (:status response)))
+(defn ok? [response] (#{200 201} (:status response)))
 (defn empty-response? [r] (and (ok? r) (= [] (body->map (:body r)))))
 (defn missing-auth? [r] (and (= 400 (:status r))
                              (= {:authorization "missing-required-key"}
