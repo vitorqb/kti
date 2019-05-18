@@ -5,9 +5,12 @@ SELECT cr.id as id,
        a.id as article_id,
        CASE
             WHEN a.id IS NULL THEN FALSE ELSE TRUE
-       END AS classified
+       END AS classified,
+       r.id as review_id,
+       r.status as review_status
 FROM captured_references AS cr
 LEFT OUTER JOIN articles AS a ON a.id_captured_reference = cr.id
+LEFT OUTER JOIN reviews AS r ON r.id_article = a.id
 
 -- :name create-captured-reference! :insert
 -- :doc creates a new captured-reference

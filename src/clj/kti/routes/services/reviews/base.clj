@@ -1,9 +1,9 @@
 (ns kti.routes.services.reviews.base
   (:require [clojure.string :as str]
+            [kti.utils :refer [string->status]]
             [kti.db.core :as db :refer [*db*]]))
 
 (def status->string (comp str/upper-case name))
-(def string->status (comp keyword str/lower-case))
 
 (defn parse-review
   "Parses raw data for a review, retrieved from the db"

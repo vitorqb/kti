@@ -25,11 +25,14 @@
           id (create-captured-reference! data)
           retrieved-reference (get-captured-reference id)]
       (is (integer? id))
-      (are [k v] (= (k retrieved-reference) v)
+      (are [k v] (= v (get retrieved-reference k ::nf))
         :id id
         :reference (:reference data)
         :classified false
-        :created-at (:created-at data))
+        :article-id nil
+        :created-at (:created-at data)
+        :review-id nil
+        :review-status nil)
       (is (= (:id-user data) 123))))
 
   (testing "Uses utils/now when no created-at"
@@ -49,10 +52,14 @@
                                           :created-at datetime})
              1))
       (let [retrieved-reference (get-captured-reference 1)]
-        (is (= (:id retrieved-reference) 1))
-        (is (= (:reference retrieved-reference) reference))
-        (is (= (:classified retrieved-reference) false))
-        (is (= (:created-at retrieved-reference) datetime)))))
+        (are [k v] (= v (get retrieved-reference k ::nf))
+          :id 1
+          :reference reference
+          :classified false
+          :created-at datetime
+          :article-id nil
+          :review-id nil
+          :review-status nil))))
 
   (testing "Creating multiple"
     (db/delete-all-captured-references)
@@ -128,7 +135,16 @@
           (get-captured-reference (create-test-captured-reference! {:user user}))
           other-user (get-user (create-test-user!))]
       (is (nil? (get-captured-reference id other-user)))
-      (is (= cap-ref (get-captured-reference id user))))))
+      (is (= cap-ref (get-captured-reference id user)))))
+  (testing "Fills review information"
+    (let [id (create-test-captured-reference!)
+          get-data #(get-captured-reference id)]
+      (are [k] (nil? (get (get-data) k ::nf)) :review-id :review-status)
+      (let [article-id (create-test-article! :id-captured-reference id)
+            review-id (create-test-review! :id-article article-id
+                                           :status :discarded)]
+        (is (= (get (get-data) :review-id ::nf) review-id))
+        (is (= (get (get-data) :review-status ::nf) :discarded))))))
 
 (deftest test-update-captured-reference!
   (testing "Updating reference"

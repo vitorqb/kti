@@ -9,6 +9,8 @@
                     :classified [k (utils/int-to-bool v)]
                     :created_at [:created-at (utils/str->date v)]
                     :article_id [:article-id v]
+                    :review_id  [:review-id v]
+                    :review_status [:review-status (and v (utils/string->status v))]
                     [k v]))
                 x)))
 
