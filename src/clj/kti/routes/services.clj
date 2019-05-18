@@ -42,6 +42,10 @@
 ;;
 ;; Schemas
 ;; 
+
+(s/defschema ReviewStatus
+  (s/enum :in-progress :completed :discarded))
+
 (s/defschema CapturedReferenceOutput
   {:id         Integer
    :reference  s/Str
@@ -49,7 +53,7 @@
    :classified s/Bool
    :article-id (s/maybe Integer)
    :review-id  (s/maybe Integer)
-   :review-status (s/maybe s/Str)})
+   :review-status (s/maybe ReviewStatus)})
 
 (s/defschema Article
   {:id                    Integer
@@ -60,9 +64,6 @@
 
 (s/defschema ArticleInput
   (dissoc Article :id))
-
-(s/defschema ReviewStatus
-  (s/enum :in-progress :completed :discarded))
 
 (s/defschema Review
   {:id            Integer
