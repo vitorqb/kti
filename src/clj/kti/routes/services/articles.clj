@@ -6,7 +6,7 @@
             [kti.routes.services.captured-references.base :refer [get-captured-reference]]
             [kti.routes.services.reviews.base :refer [get-review-for-article]]
             [kti.routes.services.users :refer [get-user-for]]
-            [kti.validation :refer [validate]]
+            [kti.validation :refer [with-validation]]
             [clojure.java.jdbc :refer [with-db-transaction]]))
 
 (declare get-all-tags create-tag!)
@@ -51,47 +51,49 @@
     (when-not (tag-exists? t)
       (create-tag! t))))
 
+(defn create-article-validators [user]
+  [validate-article-captured-reference-exists
+   validate-unique-captured-reference
+   #(validate-article-captured-reference-belongs-to-user user %)])
+
 (defn create-article!
   ([data] (create-article! data nil))
   ([{:keys [tags id-captured-reference] :as data} user]
-   (or
-    (validate data
-      validate-article-captured-reference-exists
-      validate-unique-captured-reference
-      #(validate-article-captured-reference-belongs-to-user user %))
-    (with-db-transaction [t-conn *db*]
-      (binding [*db* t-conn]
-        (create-missing-tags tags)
-        (let [article-id (-> data
-                             db/create-article!
-                             (get (keyword "last_insert_rowid()")))]
-          (set-tags-to-article! article-id tags)
-          article-id))))))
-
-(defn update-article!
-  [id {:keys [tags id-captured-reference] :as data}]
-  (let [article (get-article id) user (get-user-for :article article)]
-    (or
-     (validate data
-       validate-article-captured-reference-exists
-       #(when (not= id-captured-reference (article :id-captured-reference))
-          (validate-unique-captured-reference %))
-       #(validate-article-captured-reference-belongs-to-user user %))
+   (with-validation [(create-article-validators user) data]
      (with-db-transaction [t-conn *db*]
        (binding [*db* t-conn]
          (create-missing-tags tags)
-         (clear-article-tags! id)
-         (set-tags-to-article! id tags)
-         (db/update-article! (assoc data :id id))
-         nil)))))
+         (let [article-id (-> data
+                              db/create-article!
+                              (get (keyword "last_insert_rowid()")))]
+           (set-tags-to-article! article-id tags)
+           article-id))))))
+
+(defn update-article-validators [id-captured-reference article user]
+  [validate-article-captured-reference-exists
+   #(when (not= id-captured-reference (article :id-captured-reference))
+      (validate-unique-captured-reference %))
+   #(validate-article-captured-reference-belongs-to-user user %)])
+
+(defn update-article!
+  [id {:keys [tags id-captured-reference] :as data}]
+  (let [article (get-article id)
+        user (get-user-for :article article)
+        validators (update-article-validators id-captured-reference article user)]
+    (with-validation [validators data]
+      (with-db-transaction [t-conn *db*]
+        (binding [*db* t-conn]
+          (create-missing-tags tags)
+          (clear-article-tags! id)
+          (set-tags-to-article! id tags)
+          (db/update-article! (assoc data :id id))
+          nil)))))
 
 (defn delete-article! [id]
-  (or
-   (validate (get-article id) validate-article-has-no-review)
-   (do 
-     (db/delete-article-tags {:id id})
-     (db/delete-article! {:id id})
-     nil)))
+  (with-validation [[validate-article-has-no-review] (get-article id)]
+    (db/delete-article-tags {:id id})
+    (db/delete-article! {:id id})
+    nil))
 
 (defn article-exists?
   [id]

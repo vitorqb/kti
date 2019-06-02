@@ -18,3 +18,11 @@
           (->KtiError result))))))
 
 (defn kti-error? [x] (instance? KtiError x))
+
+(defmacro with-validation
+  "Runs body only if validation of `arg` using `validate-fns`
+  returns nil"
+  [[validate-fns arg] & body]
+  `(if-let [val-result# (apply validate ~arg ~validate-fns)]
+     val-result#
+     (do ~@body)))

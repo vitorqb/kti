@@ -4,7 +4,7 @@
             [kti.routes.services.articles.base :refer [get-article]]
             [kti.routes.services.reviews.base :refer :all]
             [kti.routes.services.users :refer [get-user-for]]
-            [kti.validation :refer [validate]]
+            [kti.validation :refer [with-validation]]
             [clojure.string :as str]))
 
 (def review-status #{:in-progress :completed :discarded})
@@ -33,33 +33,35 @@
 
 (defn get-user-reviews [user] (map parse-review (db/get-user-reviews user)))
 
+(defn create-review-validators [user]
+  [validate-id-article
+   #(validate-article-belongs-to-user user %)
+   validate-review-status
+   validate-unique-review-for-article])
+
 (defn create-review!
   ([data] (create-review! data nil))
   ([{:keys [status id-article] :as data} user]
-   (or
-    (validate data
-      validate-id-article
-      #(validate-article-belongs-to-user user %)
-      validate-review-status
-      validate-unique-review-for-article)
-    (-> data
-        (update :status status->string)
-        db/create-review!
-        (get (keyword "last_insert_rowid()"))))))
+   (with-validation [(create-review-validators user) data]
+     (-> data
+         (update :status status->string)
+         db/create-review!
+         (get (keyword "last_insert_rowid()"))))))
+
+(defn update-review-validators [user id-article-changed?]
+  [validate-review-status
+   validate-id-article
+   #(validate-article-belongs-to-user user %)
+   #(if id-article-changed? (validate-unique-review-for-article %))])
 
 (defn update-review!
   [id {:keys [status id-article] :as data}]
   (let [user (get-user-for :review {:id id})
         old-id-article (-> id get-review :id-article)
-        id-article-changed? (not (= id-article old-id-article))]
-    (or
-     (validate data
-       validate-review-status
-       validate-id-article
-       #(validate-article-belongs-to-user user %)
-       #(if id-article-changed? (validate-unique-review-for-article %)))
-     (do
-       (-> data (assoc :id id) (update :status status->string) db/update-review!)
-       nil))))
+        id-article-changed? (not (= id-article old-id-article))
+        validators (update-review-validators user id-article-changed?)]
+    (with-validation [validators data]
+      (-> data (assoc :id id) (update :status status->string) db/update-review!)
+      nil)))
 
 (defn delete-review! [id] (db/delete-review! {:id id}))
