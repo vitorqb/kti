@@ -90,6 +90,15 @@
           (is (= (->KtiError "bar") (create-review! data user)))
           (is (= @args (list user data))))))
 
+    (testing "Uses validate-unique-review-for-article"
+      (let [id-article (create-test-article!)
+            review-data (get-review-data {:id-article id-article})]
+        (with-redefs [validate-unique-review-for-article
+                      (fn [rd]
+                        (is (= rd review-data))
+                        ::val-result)]
+          (is (= (->KtiError ::val-result) (create-review! review-data))))))
+
     (testing "Error if article does not exists"
       (let [data (get-review-data)]
         (with-redefs [article-exists? (fn [_] false)]
@@ -153,7 +162,26 @@
 
       (testing "Updates values in the db"
         (is (= (get-review review-id)
-               (assoc new-data :id review-id)))))))
+               (assoc new-data :id review-id))))))
+
+  (testing "uses validate-unique-review-for-article"
+    (let [review-id           (create-test-review!)
+          review-data         (get-review review-id)
+          id-new-article      (create-test-article!)
+          review-data-new-art (assoc review-data :id-article id-new-article)]
+      ;; Same id-article, validate-unique-review is never called
+      (with-redefs [validate-unique-review-for-article
+                    (fn [x]
+                      (is (= x review-data))
+                      ::val-result)]
+        (is (= nil (update-review! review-id review-data))))
+      ;; New id-article, validate-unique-review fails
+      (with-redefs [validate-unique-review-for-article
+                    (fn [x]
+                      (is (= x review-data-new-art))
+                      ::val-result)]
+        (is (= (->KtiError ::val-result)
+               (update-review! review-id review-data-new-art)))))))
 
 (deftest test-delete-review!
   (let [id (->> (create-test-captured-reference!)
@@ -173,3 +201,19 @@
     (let [review (get-review
                   (create-review! (get-review-data {:id-article (article :id)})))]
       (is (= review (get-review-for-article article))))))
+
+(deftest test-validate-unique-review-for-article
+  (let [data {:id-article ::id}]
+
+    (testing "Ok when review is unique"
+      (with-redefs [get-review-for-article (fn [{id :id}]
+                                             (is (= id ::id))
+                                             nil)]
+        (is (nil? (validate-unique-review-for-article data)))))
+
+    (testing "When review is not unique"
+      (with-redefs [get-review-for-article (fn [{id :id}]
+                                             (is (= id ::id))
+                                             ::val-result)]
+        (is (= (DUPLICATED-REVIEW-FOR-ARTICLE ::id)
+               (validate-unique-review-for-article data)))))))
