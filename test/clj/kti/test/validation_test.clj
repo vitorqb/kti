@@ -11,3 +11,11 @@
                                  (constantly nil)
                                  (constantly "foobar")
                                  (constantly nil)))))
+
+(deftest test-with-validation
+  (is (= ::result (with-validation [[] ::arg] ::result)))
+  (let [ok-validation-fn (constantly nil)
+        er-validation-fn (constantly ::error)
+        validation-fns [ok-validation-fn er-validation-fn]]
+    (is (= (->KtiError ::error)
+           (with-validation [validation-fns ::arg] nil)))))
