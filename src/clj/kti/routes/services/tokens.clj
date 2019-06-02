@@ -6,7 +6,8 @@
             [clojure.java.jdbc :as jdbc]))
 
 (def TOKEN-LENGTH 80)
-(def TOKEN-CHARS (into #{} "1234567890qwertyuiopasdfghjklzxcvbnm-_"))
+(def TOKEN-CHARS
+  (into #{} "1234567890QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm"))
 
 (defn get-all-token-values []
   (->> (db/get-all-token-values) (map :value)))
