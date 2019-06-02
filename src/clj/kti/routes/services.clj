@@ -39,6 +39,14 @@
      (match [(kti-error? res#) res#]
        ~@clauses)))
 
+(defn extract-paginate-opts 
+  "Creates paginate-opts from page and page-size"
+  [page page-size]
+  (and page (> page 0)
+       page-size (> page-size 0)
+       {:page page :page-size page-size}))
+
+
 ;;
 ;; Schemas
 ;; 
@@ -54,6 +62,12 @@
    :article-id (s/maybe Integer)
    :review-id  (s/maybe Integer)
    :review-status (s/maybe ReviewStatus)})
+
+(s/defschema PaginatedCapturedReferenceOutput
+  {:page s/Int
+   :page-size s/Int
+   :total-items s/Int
+   :items [CapturedReferenceOutput]})
 
 (s/defschema Article
   {:id                    Integer
@@ -93,12 +107,16 @@
     (context "/api" []
 
       (GET "/captured-references" []
-        :return       [CapturedReferenceOutput]
+        :return        (s/cond-pre
+                        PaginatedCapturedReferenceOutput
+                        [CapturedReferenceOutput])
         :header-params [authorization :- s/Str]
         :summary      "Bring all captured references"
+        :query-params [{page :- s/Int nil} {page-size :- s/Int 10}]
         (fn [r]
           (let-auth? [user r]
-            (ok (get-user-captured-references user)))))
+            (let [paginate-opts (extract-paginate-opts page page-size)]
+              (ok (get-user-captured-references user paginate-opts))))))
 
       (GET "/captured-references/:id" [id]
         :return       CapturedReferenceOutput

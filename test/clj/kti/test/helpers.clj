@@ -31,6 +31,8 @@
                                 (-> r :body body->map :errors))))
 (defn auth-header [request token]
   (header request :authorization (str "TOKEN " token)))
+(defn with-paginate-opts [x {:keys [page page-size]}]
+  (str x "?page=" page "&page-size=" page-size))
 
 ;; Db populate and cleanup
 (def email-chars "1234567890qwertyuiopasdfghjklzxcvbnm")
@@ -54,6 +56,14 @@
               (set-default :created-at (utils/str->date "2018-01-01T12:12:23"))
               (set-default-fn :user    create-test-user!)
               service-captured-references/create-captured-reference!)))
+
+(defn create-dated-test-captured-references!
+  "Creates many captured references with different dates."
+  [user raw-dates]
+  (doseq [str-date raw-dates
+          :let [date (utils/str->date str-date)
+                cap-ref-data {:user user :created-at date}]]
+    (create-test-captured-reference! cap-ref-data)))
 
 (defn get-article-data
   "Article data for testing"

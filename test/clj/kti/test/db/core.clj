@@ -25,3 +25,11 @@
                 :email      "sam.smith@example.com"}))))
     (is (= {:id 1 :email "sam.smith@example.com"}
            (db/get-user t-conn {:id "1"})))))
+
+
+(deftest test-calculate-offset
+  (is (= (db/calculate-offset {:page 4 :page-size 3}) 9)))
+
+(deftest test-paginate-opts->sqlvec
+  (let [page 3 page-size 4 paginate-opts {:page page :page-size page-size}]
+    (is (= (db/paginate-opts->sqlvec paginate-opts) ["LIMIT ? OFFSET ?" 4 8]))))
