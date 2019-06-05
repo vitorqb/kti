@@ -1,0 +1,7 @@
+{:cider-nrepl {:dependencies [[nrepl "0.6.0"]]
+               :plugins [[refactor-nrepl "2.4.0"]
+                         [cider/cider-nrepl "0.22.0-beta1"]]}
+ :lispy {:dependencies [[me.raynes/fs "1.4.6"]
+                        [compliment "0.3.6"]
+                        [com.cemerick/pomegranate "0.4.0"]
+                        [org.tcrawley/dynapath "0.2.5"]]}}
