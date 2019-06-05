@@ -138,6 +138,25 @@ To start a web server for the application, run:
 
     lein run 
 
+** Developping/nrepl
+
+   I usually develop with nrepl + emacs [cider + lispy].
+   My entrypoint usually is:
+
+   1. Start a headless nrepl server.
+   2. Connect to it used cider-connect.
+
+   To achieve this I do the following:
+
+#+begin_example
+cp ./profiles.example ./profiles
+lein with-profile +cider-nrepl,+lispy trampoline repl :headless :port 7000
+# Inside emacs: M-x cider-connect <RET> <RET>
+#+end_example
+
+   The =profiles.clj= set two profiles, cider-nrepl and lispy, each of which
+   adds the necessary dependencies/plugins for cider and lispy.
+
 ** License
 
 Copyright © 2019 Vitor Quintanilha Barbosa (vitorqb@gmail.com)
