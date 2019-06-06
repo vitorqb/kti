@@ -1,4 +1,4 @@
-(defproject kti "0.1.0-SNAPSHOT"
+(defproject kti "1.5.0"
 
   :description "FIXME: write description"
   :url "http://example.com/FIXME"

@@ -98,7 +98,7 @@
   (api
     {:swagger {:ui "/swagger-ui"
                :spec "/swagger.json"
-               :data {:info {:version "1.0.0"
+               :data {:info {:version "1.5.0"
                              :title "Keep This Info - KTI"
                              :description (str "A small service to capture and"
                                                " remember things you want to see"
