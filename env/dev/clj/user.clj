@@ -5,6 +5,7 @@
             [mount.core :as mount]
             [kti.core :refer [start-app]]
             [kti.db.core]
+            [kti.routes.services.tokens :as tokens]
             [conman.core :as conman]
             [luminus-migrations.core :as migrations]))
 
@@ -38,4 +39,5 @@
 (defn create-migration [name]
   (migrations/create name (select-keys env [:database-url])))
 
-
+(defn give-token-to-test-user! []
+  (tokens/give-token! "test@test.test"))

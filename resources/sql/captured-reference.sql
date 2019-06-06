@@ -26,6 +26,8 @@ WHERE cr.id = :id
 -- :name q-get-user-captured-references :? :*
 :snip:select
 WHERE cr.id_user = :value:user.id
+ORDER BY cr.created_at DESC
+:paginating:paginate-opts
 
 -- :name delete-all-captured-references :! :n
 -- :doc deletes all captured references
@@ -38,3 +40,6 @@ WHERE id = :id
 
 -- :name delete-captured-reference! :! :n
 DELETE FROM captured_references WHERE id = :id
+
+-- :name q-count-user-captured-references :? :1
+SELECT COUNT(*) FROM captured_references WHERE id_user = :user.id

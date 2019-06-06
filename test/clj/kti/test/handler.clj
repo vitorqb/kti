@@ -3,7 +3,7 @@
             [ring.mock.request :refer :all]
             [kti.http :refer [send-email]]
             [kti.handler :refer :all]
-            [kti.routes.services :refer [Review Article]]
+            [kti.routes.services :refer [Review Article] :as services]
             [kti.routes.services.tokens
              :refer [gen-token get-current-token-for-email give-token!
                      get-token-value]]
@@ -41,6 +41,15 @@
 
 (use-fixtures :once fixture-start-app-and-env)
 (use-fixtures :each fixture-bind-db-to-rollback-transaction)
+
+(deftest test-extract-paginate-opts
+  (are [pg pg-sz resp] (= (services/extract-paginate-opts pg pg-sz) resp)
+    nil nil nil
+    10 nil nil
+    nil 10 nil
+    10 20 {:page 10 :page-size 20}
+    -1 20 false
+    20 -1 false))
 
 (deftest test-returns-json-format
   ;; Any url should behave the same
@@ -103,8 +112,9 @@
                 (cond-> token (auth-header token))
                 app))]
     (testing "empty"
-      (let [token (get-token-value (create-test-token!))]
-        (is (empty-response? (run-get token)))))
+      (let [token (get-token-value (create-test-token!))
+            response (run-get token)]
+        (is (empty-response? response))))
     (testing "missing auth" (is (missing-auth? (run-get nil))))
     (testing "two long same user"
       (let [user (get-user (create-test-user!))
@@ -122,7 +132,30 @@
     (testing "Can't see form other user"
       (let [id (create-test-captured-reference!)
             token (get-token-value (create-test-token!))]
-        (is (= 0 (-> token run-get :body body->map count)))))))
+        (is (= 0 (-> token run-get :body body->map count)))))
+    (testing "Paginated"
+      (let [user (get-user (create-test-user!))
+            token (get-token-value (create-test-token! user))
+            raw-dates ["2018-01-01T00:00:00" "2018-01-02T00:00:00"
+                       "2018-01-03T00:00:00"]
+            make-url #(with-paginate-opts "/api/captured-references" %)
+            run-get #(-> (request :get (make-url %1))
+                         (auth-header %2)
+                         app)]
+        ;; Create 3 captured references
+        (create-dated-test-captured-references! user raw-dates)
+        ;; Asks for the second page
+        (let [page 2
+              page-size 2
+              paginate-opts {:page page :page-size page-size}
+              resp (run-get paginate-opts token)
+              body (-> resp :body body->map)]
+          (are [k v] (= (get body k) v)
+            :page page
+            :page-size page-size
+            :total-items 3)
+          (is (= (count (body :items)) 1))
+          (is (= (get-in body [:items 0 :created-at]) (raw-dates 0))))))))
 
 (deftest test-put-captured-reference
   (let [run-request #(-> (request :put (str "/api/captured-references/" %1))

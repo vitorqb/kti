@@ -5,7 +5,8 @@
             [java-time]
             [java-time.pre-java8 :as jt]
             [mount.core :refer [defstate]]
-            [kti.config :refer [env]]))
+            [kti.config :refer [env]]
+            [hugsql.parameters]))
 
 (defstate ^:dynamic *db*
           :start (conman/connect! {:jdbc-url (env :database-url)})
@@ -19,8 +20,14 @@
   ([db params & rest]
    (apply q-get-captured-reference db (assoc params :select (snip-select)) rest)))
 
-(defn get-user-captured-references
-  [params] (q-get-user-captured-references (assoc params :select (snip-select))))
+(defn get-user-captured-references [params]
+  (let [final-params (assoc params :select (snip-select))]
+    (q-get-user-captured-references final-params)))
+
+(defn count-user-captured-references [params]
+  (let [sql-result (q-count-user-captured-references params)
+        count (get sql-result (keyword "count(*)"))]
+    (or count 0)))
 
 (conman/bind-connection *db* "sql/tags.sql")
 (conman/bind-connection *db* "sql/articles.sql")
@@ -69,3 +76,13 @@
   (sql-value [v]
     (jt/sql-timestamp v)))
 
+;; Pagination implementation
+(defn calculate-offset [{:keys [page page-size]}] (* (dec page) page-size))
+
+(defn paginate-opts->sqlvec [{:keys [page-size] :as paginate-opts}]
+  ["LIMIT ? OFFSET ?" page-size (calculate-offset paginate-opts)])
+
+(defmethod hugsql.parameters/apply-hugsql-param :paginating
+  [{:keys [name]} data _]
+  (if-let [paginate-opts (get data (keyword name))]
+    (paginate-opts->sqlvec paginate-opts)))

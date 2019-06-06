@@ -27,10 +27,16 @@
           :id-user (:id user)})
         (get (keyword "last_insert_rowid()")))))
 
-(defn get-user-captured-references [user]
-  (->> {:user user}
-       db/get-user-captured-references
-       (map parse-retrieved-captured-reference)))
+(defn get-user-captured-references
+  ([user] (get-user-captured-references user nil))
+  ([user paginate-opts]
+   (let [opts {:user user :paginate-opts paginate-opts}
+         raw-results (db/get-user-captured-references opts)
+         results (map parse-retrieved-captured-reference raw-results)]
+     (if paginate-opts
+       (let [total-items (or (db/count-user-captured-references {:user user}) 0)]
+         (assoc paginate-opts :items results :total-items total-items))
+       results))))
 
 (defn update-captured-reference! [id args]
   (with-validation [[validate-captured-ref-reference-min-length] args]

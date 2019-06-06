@@ -106,15 +106,33 @@
 (deftest test-get-user-captured-references
   (let [user (get-user (create-test-user!))]
     (testing "Empty" (is (= [] (get-user-captured-references user))))
-      (let [cap-ref1 (get-captured-reference
-                      (create-test-captured-reference! {:user user}))
-            cap-ref2 (get-captured-reference
-                      (create-test-captured-reference! {:user user}))]
-        (testing "See his own"
-          (is (= [cap-ref1 cap-ref2] (get-user-captured-references user))))
-        (testing "Don't see other user's"
-          (is (= [] (get-user-captured-references
-                     (get-user (create-test-user!)))))))))
+    (let [cap-ref1 (get-captured-reference
+                    (create-test-captured-reference! {:user user}))
+          cap-ref2 (get-captured-reference
+                    (create-test-captured-reference! {:user user}))]
+      (testing "See his own"
+        (is (= [cap-ref1 cap-ref2] (get-user-captured-references user))))
+      (testing "Don't see other user's"
+        (is (= [] (get-user-captured-references
+                   (get-user (create-test-user!)))))))
+    (testing "Paginated"
+      (let [user (get-user (create-test-user!))
+            raw-dates ["2012-01-01T00:00:00"
+                       "2011-01-01T00:00:00"
+                       "2010-01-01T00:00:00"]
+            cap-refs (vec
+                      (for [raw-date raw-dates
+                            :let [date (utils/str->date raw-date)
+                                  data {:user user :created-at date}
+                                  id (create-test-captured-reference! data)]]
+                        (get-captured-reference id)))
+            page-size 2
+            total-items (count raw-dates)
+            exp-result {:page-size page-size :total-items total-items}]
+        (is (= (assoc exp-result :page 1 :items [(cap-refs 0) (cap-refs 1)])
+               (get-user-captured-references user {:page 1 :page-size 2})))
+        (is (= (assoc exp-result :page 2 :items [(cap-refs 2)])
+               (get-user-captured-references user {:page 2 :page-size 2})))))))
 
 (deftest test-get-captured-reference
   (db/delete-all-articles)
