@@ -1,7 +1,8 @@
 (ns kti.routes.services.reviews.base
   (:require [clojure.string :as str]
             [kti.utils :refer [string->status]]
-            [kti.db.core :as db :refer [*db*]]))
+            [kti.db.reviews :as db.reviews]
+            [kti.db.state :refer [*db*]]))
 
 (def status->string (comp str/upper-case name))
 
@@ -17,4 +18,4 @@
         x))
 
 (defn get-review-for-article [x]
-  (some-> x db/get-review-for-article parse-review))
+  (some-> x db.reviews/get-review-for-article parse-review))

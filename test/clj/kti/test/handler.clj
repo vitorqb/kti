@@ -12,7 +12,8 @@
             [kti.utils :refer :all]
             [kti.test.helpers :refer :all]
             [clojure.java.jdbc :as jdbc]
-            [kti.db.core :as db :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.state :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!
                      DELETE-ERR-MSG-ARTICLE-EXISTS

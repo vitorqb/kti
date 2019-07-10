@@ -4,9 +4,11 @@
             [cheshire.core :as cheshire]
             [kti.handler]
             [kti.db.core :as db]
+            [kti.db.articles :as db.articles]
+            [kti.db.tags :as db.tags]
             [kti.utils :as utils :refer [set-default set-default-fn]]
             [kti.config :refer [env]]
-            [kti.db.core :refer [*db*]]
+            [kti.db.state :refer [*db*]]
             [kti.routes.services.captured-references :as service-captured-references]
             [kti.routes.services.articles :refer [create-article!]]
             [kti.routes.services.users.base :refer [create-user!]]
@@ -44,9 +46,9 @@
     out))
   
 (defn clean-articles-and-tags []
-  (db/delete-all-articles)
-  (db/delete-all-articles-tags)
-  (db/delete-all-tags))
+  (db.articles/delete-all-articles)
+  (db.articles/delete-all-articles-tags)
+  (db.tags/delete-all-tags))
 
 (defn create-test-captured-reference!
   "Creates a reference for testing"
@@ -145,7 +147,7 @@
 
 (defn fixture-start-env-and-db
   [f]
-  (mount/start #'kti.config/env #'kti.db.core/*db*)
+  (mount/start #'kti.config/env #'kti.db.state/*db*)
   (migrations/migrate ["migrate"] (select-keys env [:database-url]))
   (f))
 

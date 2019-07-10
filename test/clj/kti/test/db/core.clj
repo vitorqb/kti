@@ -1,5 +1,7 @@
 (ns kti.test.db.core
-  (:require [kti.db.core :refer [*db*] :as db]
+  (:require [kti.db.state :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.user :as db.user]
             [luminus-migrations.core :as migrations]
             [clojure.test :refer :all]
             [clojure.java.jdbc :as jdbc]
@@ -11,7 +13,7 @@
   (fn [f]
     (mount/start
       #'kti.config/env
-      #'kti.db.core/*db*)
+      #'kti.db.state/*db*)
     (migrations/migrate ["migrate"] (select-keys env [:database-url]))
     (f)))
 
@@ -19,12 +21,12 @@
   (jdbc/with-db-transaction [t-conn *db*]
     (jdbc/db-set-rollback-only! t-conn)
     (is (= 1 ((keyword "last_insert_rowid()")
-              (db/create-user!
+              (db.user/create-user!
                t-conn
                {:id         "1"
                 :email      "sam.smith@example.com"}))))
     (is (= {:id 1 :email "sam.smith@example.com"}
-           (db/get-user t-conn {:id "1"})))))
+           (db.user/get-user t-conn {:id "1"})))))
 
 
 (deftest test-calculate-offset

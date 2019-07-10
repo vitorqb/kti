@@ -1,7 +1,9 @@
 (ns kti.routes.services.captured-references
   (:require [kti.routes.services.captured-references.base
              :refer [parse-retrieved-captured-reference get-captured-reference]]
-            [kti.db.core :as db :refer [*db*]]
+            [kti.db.state :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.captured-references :as db.cap-refs]
             [java-time]
             [kti.utils :as utils]
             [kti.validation :refer [with-validation]]
@@ -21,7 +23,7 @@
 
 (defn create-captured-reference! [{:keys [reference created-at user] :as data}]
   (with-validation [[validate-captured-ref-reference-min-length] data]
-    (-> (db/create-captured-reference!
+    (-> (db.cap-refs/create-captured-reference!
          {:reference reference
           :created-at (or created-at (utils/now))
           :id-user (:id user)})
@@ -31,16 +33,16 @@
   ([user] (get-user-captured-references user nil))
   ([user paginate-opts]
    (let [opts {:user user :paginate-opts paginate-opts}
-         raw-results (db/get-user-captured-references opts)
+         raw-results (db.cap-refs/get-user-captured-references opts)
          results (map parse-retrieved-captured-reference raw-results)]
      (if paginate-opts
-       (let [total-items (or (db/count-user-captured-references {:user user}) 0)]
+       (let [total-items (or (db.cap-refs/count-user-captured-references {:user user}) 0)]
          (assoc paginate-opts :items results :total-items total-items))
        results))))
 
 (defn update-captured-reference! [id args]
   (with-validation [[validate-captured-ref-reference-min-length] args]
-    (db/update-captured-reference! (assoc args :id id))
+    (db.cap-refs/update-captured-reference! (assoc args :id id))
     nil))
 
 (defn validate-no-related-article [x]
@@ -51,7 +53,7 @@
   (let [captured-reference (get-captured-reference id)
         validators [validate-no-related-article]]
     (with-validation [validators captured-reference]
-      (db/delete-captured-reference! {:id id})
+      (db.cap-refs/delete-captured-reference! {:id id})
       nil)))
 
 (def CAPTURED_REFERENCE_ID_ERR_NIL "Captured reference id can not be nil.")
