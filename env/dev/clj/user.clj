@@ -6,10 +6,16 @@
             [kti.core :refer [start-app]]
             [kti.db.core]
             [kti.routes.services.tokens :as tokens]
+            [kti.handler]
+            [ring.util.request :as ring.util]
             [conman.core :as conman]
-            [luminus-migrations.core :as migrations]))
+            [luminus-migrations.core :as migrations]
+            [ring.mock.request :as mock]
+            [clojure.pprint]))
 
 (alter-var-root #'s/*explain-out* (constantly expound/printer))
+
+(defonce test-token (atom nil))
 
 (defn start []
   (mount/start-without #'kti.core/repl-server))
@@ -40,4 +46,14 @@
   (migrations/create name (select-keys env [:database-url])))
 
 (defn give-token-to-test-user! []
-  (tokens/give-token! "test@test.test"))
+  (reset! test-token (tokens/give-token! "test@test.test")))
+
+(defn run-request [r]
+  (when (nil? @test-token)
+    (give-token-to-test-user!))
+  (-> r
+      (mock/header "Authorization" (str "TOKEN " @test-token))
+      (doto (clojure.pprint/pprint))
+      kti.handler/app
+      (as-> it
+          (assoc it :body (ring.util/body-string it)))))
