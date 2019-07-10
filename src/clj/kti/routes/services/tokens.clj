@@ -1,5 +1,6 @@
 (ns kti.routes.services.tokens
-  (:require [kti.db.core :as db :refer [*db*]]
+  (:require [kti.db.tokens :as db.tokens]
+            [kti.db.state :refer [*db*]]
             [kti.http :as kti-http]
             [kti.routes.services.users.base :refer [get-user-by-email
                                                     create-user!]]
@@ -10,9 +11,9 @@
   (into #{} "1234567890QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm"))
 
 (defn get-all-token-values []
-  (->> (db/get-all-token-values) (map :value)))
+  (->> (db.tokens/get-all-token-values) (map :value)))
 
-(defn get-token-value [id] (some-> {:id id} db/get-token-value :value))
+(defn get-token-value [id] (some-> {:id id} db.tokens/get-token-value :value))
 
 (defn send-token-by-email! [email value]
   (kti-http/send-email email (str "Your token is: " value)))
@@ -25,12 +26,12 @@
     (some #(when-not (existing-tokens %) %) (repeatedly generate-one))))
 
 (defn get-current-token-for-email [email]
-  (:value (db/get-current-token-for-email {:email email})))
+  (:value (db.tokens/get-current-token-for-email {:email email})))
 
-(defn delete-tokens-for-user! [user] (db/delete-tokens-for-user user))
+(defn delete-tokens-for-user! [user] (db.tokens/delete-tokens-for-user user))
 
 (defn create-token! [{:keys [user value]}]
-  (-> (db/create-token! {:id-user (:id user) :value value})
+  (-> (db.tokens/create-token! {:id-user (:id user) :value value})
       (get (keyword "last_insert_rowid()"))))
 
 (defn give-token! [email]

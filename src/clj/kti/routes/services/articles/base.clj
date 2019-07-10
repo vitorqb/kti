@@ -1,6 +1,6 @@
 (ns kti.routes.services.articles.base
   (:require [clojure.string :as string]
-            [kti.db.core :as db]))
+            [kti.db.articles :as db.articles]))
 
 (defn parse-article-data [x]
   (-> x
@@ -12,8 +12,8 @@
 
 (defn get-article-for-captured-reference
   [x]
-  (some-> (db/get-article-for-captured-reference x) parse-article-data))
+  (some-> x db.articles/get-article-for-captured-reference parse-article-data))
 
 (defn get-article
   ([id] (get-article id nil))
-  ([id user] (some-> {:id id :user user} db/get-article parse-article-data)))
+  ([id user] (some-> {:id id :user user} db.articles/get-article parse-article-data)))

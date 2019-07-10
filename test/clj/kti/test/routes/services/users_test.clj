@@ -1,7 +1,8 @@
 (ns kti.test.routes.services.users-test
   (:require [clojure.test :refer :all]
             [clojure.java.jdbc :as jdbc]
-            [kti.db.core :as db :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.state :refer [*db*]]
             [kti.test.helpers :refer :all]
             [kti.routes.services.users :refer :all]
             [kti.routes.services.users.base :refer :all]

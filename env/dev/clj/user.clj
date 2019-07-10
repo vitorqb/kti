@@ -28,10 +28,10 @@
   (start))
 
 (defn restart-db []
-  (mount/stop #'kti.db.core/*db*)
-  (mount/start #'kti.db.core/*db*)
+  (mount/stop #'kti.db.state/*db*)
+  (mount/start #'kti.db.state/*db*)
   (binding [*ns* 'kti.db.core]
-    (conman/bind-connection kti.db.core/*db* "sql/queries.sql")))
+    (conman/bind-connection kti.db.state/*db* "sql/queries.sql")))
 
 (defn reset-db []
   (migrations/migrate ["reset"] (select-keys env [:database-url])))

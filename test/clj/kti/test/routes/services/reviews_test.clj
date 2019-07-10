@@ -8,7 +8,9 @@
             [kti.routes.services.articles
              :refer [article-exists? create-article!]]
             [kti.routes.services.articles.base :refer [get-article]]
-            [kti.db.core :refer [*db*] :as db]
+            [kti.db.state :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.reviews :as db.reviews]
             [clojure.java.jdbc :refer [insert!]]))
 
 
@@ -106,7 +108,7 @@
                  (create-review! data))))))))
 
 (deftest test-get-all-reviews
-  (db/delete-all-reviews)
+  (db.reviews/delete-all-reviews)
   (let [articles-ids (doall (map (fn [_] (create-test-article!))
                                  [1 2 3 4 5]))
         reviews-ids (doall (map (fn [id]

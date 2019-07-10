@@ -4,6 +4,8 @@
             [kti.routes.services.tokens :refer [get-token-value]]
             [kti.routes.services.users :refer [get-user]]
             [kti.db.core :as db]
+            [kti.db.articles :as db.articles]
+            [kti.db.captured-references :as db.cap-refs]
             [java-time]
             [kti.utils :as utils]
             [ring.mock.request :refer :all]
@@ -17,8 +19,8 @@
 
 
 (deftest integration-tests-capturing-a-link
-  (db/delete-all-captured-references)
-  (db/delete-all-articles)
+  (db.cap-refs/delete-all-captured-references)
+  (db.articles/delete-all-articles)
   (let [link "https://www.youtube.com/watch?v=VON0rut5Pl8"
         created-id (atom nil)
         user (get-user (create-test-user!))

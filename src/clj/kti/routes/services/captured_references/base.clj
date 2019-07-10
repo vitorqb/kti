@@ -1,5 +1,7 @@
 (ns kti.routes.services.captured-references.base
-  (:require [kti.db.core :as db :refer [*db*]]
+  (:require [kti.db.core :as db]
+            [kti.db.state :refer [*db*]]
+            [kti.db.captured-references :as db.cap-refs]
             [kti.utils :as utils]))
 
 (defn parse-retrieved-captured-reference
@@ -16,5 +18,5 @@
 
 (defn get-captured-reference
   ([id] (get-captured-reference id nil))
-  ([id user] (some-> (db/get-captured-reference *db* {:id id :user user})
+  ([id user] (some-> (db.cap-refs/get-captured-reference *db* {:id id :user user})
                      (parse-retrieved-captured-reference))))

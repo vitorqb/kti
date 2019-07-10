@@ -6,7 +6,10 @@
             [kti.routes.services.articles :refer :all]
             [kti.routes.services.articles.base :refer :all]
             [kti.routes.services.reviews.base :refer [get-review-for-article]]
-            [kti.db.core :as db :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.tags :as db.tags]
+            [kti.db.articles :as db.articles]
+            [kti.db.state :refer [*db*]]
             [kti.routes.services.captured-references
              :refer [create-captured-reference!]]
             [kti.routes.services.captured-references.base
@@ -175,7 +178,7 @@
              #{})))))
 
 (deftest test-create-tag!
-  (db/delete-all-tags)
+  (db.tags/delete-all-tags)
 
   (testing "base"
     (create-tag! "tag1")
@@ -216,7 +219,7 @@
       (is (= (get-tags-for-article {:id article-id}) (:tags data))))
 
     (testing "Adds values to db"
-      (let [db-data (db/get-article {:id article-id})]
+      (let [db-data (db.articles/get-article {:id article-id})]
         (is (= (:id_captured_reference db-data) captured-ref-id))
         (is (= (:id db-data) article-id))
         (is (= (:description db-data) (:description data)))

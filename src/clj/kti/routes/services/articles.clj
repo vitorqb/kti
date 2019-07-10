@@ -2,7 +2,10 @@
   (:require [kti.routes.services.articles.base
              :refer [parse-article-data get-article-for-captured-reference
                      get-article]]
-            [kti.db.core :as db :refer [*db*]]
+            [kti.db.articles :as db.articles]
+            [kti.db.tags :as db.tags]
+            [kti.db.core :as db]
+            [kti.db.state :refer [*db*]]
             [kti.routes.services.captured-references.base :refer [get-captured-reference]]
             [kti.routes.services.reviews.base :refer [get-review-for-article]]
             [kti.routes.services.users :refer [get-user-for]]
@@ -22,10 +25,10 @@
   #(str "An article already exists for captured reference with id" %))
 (def ERR-MSG-ARTICLE-HAS-REVIEW "Article has a review associated with it.")
 
-(defn clear-article-tags! [id] (db/delete-article-tags {:id id}))
+(defn clear-article-tags! [id] (db.articles/delete-article-tags {:id id}))
 
 (defn set-tags-to-article! [id tags]
-  (doseq [t tags] (db/create-article-tag! {:article-id id :tag t})))
+  (doseq [t tags] (db.articles/create-article-tag! {:article-id id :tag t})))
 
 (defn validate-article-captured-reference-exists [{:keys [id-captured-reference]}]
   (when (nil? (get-captured-reference id-captured-reference))
@@ -44,7 +47,7 @@
     (when-not (get-captured-reference id-captured-reference user)
       (ARTICLE_ERR_INVALID_CAPTURED_REFERENCE_ID id-captured-reference))))
 
-(defn tag-exists? [x] (-> (db/tag-exists? {:tag x}) :resp (= 1)))
+(defn tag-exists? [x] (-> (db.tags/tag-exists? {:tag x}) :resp (= 1)))
 
 (defn create-missing-tags [tags]
   (doseq [t tags]
@@ -64,7 +67,7 @@
        (binding [*db* t-conn]
          (create-missing-tags tags)
          (let [article-id (-> data
-                              db/create-article!
+                              db.articles/create-article!
                               (get (keyword "last_insert_rowid()")))]
            (set-tags-to-article! article-id tags)
            article-id))))))
@@ -86,18 +89,18 @@
           (create-missing-tags tags)
           (clear-article-tags! id)
           (set-tags-to-article! id tags)
-          (db/update-article! (assoc data :id id))
+          (db.articles/update-article! (assoc data :id id))
           nil)))))
 
 (defn delete-article! [id]
   (with-validation [[validate-article-has-no-review] (get-article id)]
-    (db/delete-article-tags {:id id})
-    (db/delete-article! {:id id})
+    (db.articles/delete-article-tags {:id id})
+    (db.articles/delete-article! {:id id})
     nil))
 
 (defn article-exists?
   [id]
-  (-> {:id id} db/article-exists? (get :resp)))
+  (-> {:id id} db.articles/article-exists? (get :resp)))
 
 ;; !!!! TODO -> use kti.validate
 (defn validate-tag [x]
@@ -117,15 +120,15 @@
    ;; !!!! TODO -> Use validation framework
    (when-let [err (validate-tag tag)]
      (throw (ex-info err {:type :tag-validation-exception})))
-   (db/create-tag! db {:tag tag})))
+   (db.tags/create-tag! db {:tag tag})))
 
-(defn count-tags [] (get (db/count-tags) (keyword "count(*)")))
+(defn count-tags [] (get (db.tags/count-tags) (keyword "count(*)")))
 
 (defn get-user-articles [user]
-  (map parse-article-data (db/get-user-articles {:user user})))
+  (map parse-article-data (db.articles/get-user-articles {:user user})))
 
 (defn get-tags-for-article [article]
-  (->> (db/get-tags-for-article article) (map :id_tag) (into #{})))
+  (->> (db.tags/get-tags-for-article article) (map :id_tag) (into #{})))
 
 (defn get-all-tags []
-  (->> (db/get-all-tags) (map :tag) (into #{})))
+  (->> (db.tags/get-all-tags) (map :tag) (into #{})))

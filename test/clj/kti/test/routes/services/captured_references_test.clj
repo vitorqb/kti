@@ -7,7 +7,10 @@
             [kti.routes.services.captured-references.base
              :refer [parse-retrieved-captured-reference get-captured-reference]]
             [kti.routes.services.users :refer [get-user get-user-for]]
-            [kti.db.core :refer [*db*] :as db]
+            [kti.db.state :refer [*db*]]
+            [kti.db.core :as db]
+            [kti.db.captured-references :as db.cap-refs]
+            [kti.db.articles :as db.articles]
             [kti.config :refer [env]]
             [kti.validation :refer [->KtiError]]
             [clojure.test :refer :all]
@@ -19,8 +22,8 @@
 
 (deftest test-creating-captured-references
   (testing "Creating and returning a new captured reference"
-    (db/delete-all-captured-references)
-    (db/delete-all-articles)
+    (db.cap-refs/delete-all-captured-references)
+    (db.articles/delete-all-articles)
     (let [data (get-captured-reference-data {:id-user 123})
           id (create-captured-reference! data)
           retrieved-reference (get-captured-reference id)]
@@ -45,7 +48,7 @@
                date)))))
 
   (testing "Creating with specific datetime"
-    (db/delete-all-captured-references)
+    (db.cap-refs/delete-all-captured-references)
     (let [reference "another ref"
           datetime (java-time/local-date-time 2018 11 23 12 12)]
       (is (= (create-captured-reference! {:reference reference
@@ -62,7 +65,7 @@
           :review-status nil))))
 
   (testing "Creating multiple"
-    (db/delete-all-captured-references)
+    (db.cap-refs/delete-all-captured-references)
     (doseq [[reference-str id] [["one" 1] ["two" 2]]]
       (is (= (create-captured-reference!
               (get-captured-reference-data {:reference reference-str}))
@@ -135,8 +138,8 @@
                (get-user-captured-references user {:page 2 :page-size 2})))))))
 
 (deftest test-get-captured-reference
-  (db/delete-all-articles)
-  (db/delete-all-captured-references)
+  (db.articles/delete-all-articles)
+  (db.cap-refs/delete-all-captured-references)
   (testing "When id does not exist"
     (is (= (get-captured-reference 921928129) nil)))
   (testing "Classified is True after an article is created"
