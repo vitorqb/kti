@@ -112,11 +112,17 @@
                         [CapturedReferenceOutput])
         :header-params [authorization :- s/Str]
         :summary      "Bring all captured references"
-        :query-params [{page :- s/Int nil} {page-size :- s/Int 10}]
+        :query-params [{page :- s/Int nil}
+                       {page-size :- s/Int 10}
+                       {has-article :- s/Bool nil}
+                       {has-review :- s/Bool nil}
+                       :as query-params]
         (fn [r]
           (let-auth? [user r]
-            (let [paginate-opts (extract-paginate-opts page page-size)]
-              (ok (get-user-captured-references user paginate-opts))))))
+            (let [paginate-opts (extract-paginate-opts page page-size)
+                  filter-opts (query-params->filter-opts query-params)
+                  opts {:paginate-opts paginate-opts :filter-opts filter-opts}]
+              (ok (get-user-captured-references user opts))))))
 
       (GET "/captured-references/:id" [id]
         :return       CapturedReferenceOutput
