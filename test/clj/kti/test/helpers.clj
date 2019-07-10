@@ -96,6 +96,9 @@
         (assert (nil? error-msg) (str "Failed to create article for test: " error-msg))
         id))))
 
+(defn create-article-for-cap-ref-id [id]
+  (create-test-article! :id-captured-reference id))
+
 (defn create-test-user! [& key-val]
   (let [data (apply hash-map key-val)
         keys [:email]

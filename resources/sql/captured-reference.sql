@@ -12,6 +12,12 @@ FROM captured_references AS cr
 LEFT OUTER JOIN articles AS a ON a.id_captured_reference = cr.id
 LEFT OUTER JOIN reviews AS r ON r.id_article = a.id
 
+-- :snip snip-filter
+--~ (if (:filter.review-is-nil? params) "AND review_id IS NULL")
+--~ (if (:filter.review-is-not-nil? params) "AND review_id IS NOT NULL")
+--~ (if (:filter.article-is-nil? params) "AND article_id IS NULL")
+--~ (if (:filter.article-is-not-nil? params) "AND article_id IS NOT NULL")
+
 -- :name create-captured-reference! :insert
 -- :doc creates a new captured-reference
 INSERT INTO captured_references (reference, created_at, id_user)
@@ -26,6 +32,7 @@ WHERE cr.id = :id
 -- :name q-get-user-captured-references :? :*
 :snip:select
 WHERE cr.id_user = :value:user.id
+:snip:filter
 ORDER BY cr.created_at DESC
 :paginating:paginate-opts
 
@@ -42,4 +49,9 @@ WHERE id = :id
 DELETE FROM captured_references WHERE id = :id
 
 -- :name q-count-user-captured-references :? :1
-SELECT COUNT(*) FROM captured_references WHERE id_user = :user.id
+SELECT COUNT(*)
+FROM (
+    :snip:select
+    WHERE id_user = :user.id
+    :snip:filter
+)

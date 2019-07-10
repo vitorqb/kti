@@ -9,6 +9,7 @@
             [kti.routes.services.users :refer [get-user get-user-for]]
             [kti.db.state :refer [*db*]]
             [kti.db.core :as db]
+            [kti.db.constants :as db.constants]
             [kti.db.captured-references :as db.cap-refs]
             [kti.db.articles :as db.articles]
             [kti.config :refer [env]]
@@ -19,6 +20,13 @@
 
 (use-fixtures :once fixture-start-env-and-db)
 (use-fixtures :each fixture-bind-db-to-rollback-transaction)
+
+(deftest test-query-params->filter-opts
+  (are [q f] (= f (query-params->filter-opts q))
+    {} {:has-article? ::db.constants/nofilter :has-review? ::db.constants/nofilter}
+    {:has-article true} {:has-article? true :has-review? ::db.constants/nofilter}
+    {:has-article false} {:has-article? false :has-review? ::db.constants/nofilter}
+    {:has-article false :has-review true} {:has-article? false :has-review? true}))
 
 (deftest test-creating-captured-references
   (testing "Creating and returning a new captured reference"
@@ -108,16 +116,22 @@
 
 (deftest test-get-user-captured-references
   (let [user (get-user (create-test-user!))]
-    (testing "Empty" (is (= [] (get-user-captured-references user))))
+
+    (testing "Empty"
+      (is (= [] (get-user-captured-references user))))
+
     (let [cap-ref1 (get-captured-reference
                     (create-test-captured-reference! {:user user}))
           cap-ref2 (get-captured-reference
                     (create-test-captured-reference! {:user user}))]
+
       (testing "See his own"
         (is (= [cap-ref1 cap-ref2] (get-user-captured-references user))))
+
       (testing "Don't see other user's"
         (is (= [] (get-user-captured-references
                    (get-user (create-test-user!)))))))
+
     (testing "Paginated"
       (let [user (get-user (create-test-user!))
             raw-dates ["2012-01-01T00:00:00"
@@ -133,9 +147,42 @@
             total-items (count raw-dates)
             exp-result {:page-size page-size :total-items total-items}]
         (is (= (assoc exp-result :page 1 :items [(cap-refs 0) (cap-refs 1)])
-               (get-user-captured-references user {:page 1 :page-size 2})))
+               (get-user-captured-references
+                user
+                {:paginate-opts {:page 1 :page-size 2}})))
         (is (= (assoc exp-result :page 2 :items [(cap-refs 2)])
-               (get-user-captured-references user {:page 2 :page-size 2})))))))
+               (get-user-captured-references
+                user
+                {:paginate-opts {:page 2 :page-size 2}})))))
+
+    (testing "Filtering by article"
+      (let [user (get-user (create-test-user!))
+            cap-ref-id-no-article (create-test-captured-reference! {:user user})
+            cap-ref-id-with-article (doto (create-test-captured-reference! {:user user})
+                                      (create-article-for-cap-ref-id))]
+
+        (is (= [cap-ref-id-no-article cap-ref-id-with-article]
+               (map :id (get-user-captured-references user))))
+
+        (is (= [cap-ref-id-no-article cap-ref-id-with-article]
+               (map :id (get-user-captured-references
+                         user
+                         {:filter-opts {:has-review? false}}))))
+
+        (is (= []
+               (map :id (get-user-captured-references
+                         user
+                         {:filter-opts {:has-review? true}}))))
+
+        (is (= [cap-ref-id-with-article]
+               (map :id (get-user-captured-references
+                         user
+                         {:filter-opts {:has-article? true}}))))
+
+        (is (= [cap-ref-id-no-article]
+               (map :id (get-user-captured-references
+                         user
+                         {:filter-opts {:has-article? false}}))))))))
 
 (deftest test-get-captured-reference
   (db.articles/delete-all-articles)

@@ -18,7 +18,8 @@
              :refer [create-captured-reference!
                      DELETE-ERR-MSG-ARTICLE-EXISTS
                      validate-captured-ref-reference-min-length
-                     ERR-MSG-REFERENCE-MIN-LENGTH]]
+                     ERR-MSG-REFERENCE-MIN-LENGTH]
+             :as services.cap-refs]
             [kti.routes.services.captured-references.base
              :refer [get-captured-reference]]
             [kti.routes.services.articles
@@ -33,7 +34,8 @@
             [kti.middleware.formats :as formats]
             [ring.swagger.schema :as ring-schema]
             [muuntaja.core :as m]
-            [mount.core :as mount]))
+            [mount.core :as mount]
+            [ring.util.http-response :as http-response]))
 
 (def url-inexistant-captured-reference "/api/captured-references/not-an-id")
 (def captured-reference-data {:reference "some ref"})
@@ -112,11 +114,14 @@
             (-> (request :get "/api/captured-references")
                 (cond-> token (auth-header token))
                 app))]
+
     (testing "empty"
       (let [token (get-token-value (create-test-token!))
             response (run-get token)]
         (is (empty-response? response))))
+
     (testing "missing auth" (is (missing-auth? (run-get nil))))
+
     (testing "two long same user"
       (let [user (get-user (create-test-user!))
             token (get-token-value (create-test-token! user))
@@ -130,10 +135,12 @@
         (is (ok? response))
         (is (= (count body) 2))
         (is (= (set ids) (->> body (map :id) set)))))
+
     (testing "Can't see form other user"
       (let [id (create-test-captured-reference!)
             token (get-token-value (create-test-token!))]
         (is (= 0 (-> token run-get :body body->map count)))))
+
     (testing "Paginated"
       (let [user (get-user (create-test-user!))
             token (get-token-value (create-test-token! user))
@@ -156,7 +163,48 @@
             :page-size page-size
             :total-items 3)
           (is (= (count (body :items)) 1))
-          (is (= (get-in body [:items 0 :created-at]) (raw-dates 0))))))))
+          (is (= (get-in body [:items 0 :created-at]) (raw-dates 0))))))
+
+    (testing "Filtered"
+      (let [user (get-user (create-test-user!))
+            cap-ref-id-no-article (create-test-captured-reference! {:user user})
+            cap-ref-id-article (doto (create-test-captured-reference! {:user user})
+                                 (create-article-for-cap-ref-id))
+            token (get-token-value (create-test-token! user))
+            url "/api/captured-references"]
+
+        (let [response (-> (request :get url)
+                           (auth-header token)
+                           (query-string {"page" 1 "page-size" 2 "has-review" "true"})
+                           app)
+              body (-> response :body body->map)]
+          (is (ok? response))
+          (is (= {:page 1 :page-size 2 :total-items 0 :items []}
+                 body)))
+
+        (let [response (-> (request :get url)
+                           (auth-header token)
+                           (query-string {"page" 1 "page-size" 2 "has-article" "false"})
+                           app)
+              body (-> response :body body->map)
+              {:keys [page page-size total-items items]} body]
+          (is (ok? response))
+          (is (= page 1))
+          (is (= page-size 2))
+          (is (= total-items 1))
+          (is (= [cap-ref-id-no-article] (map :id items))))
+
+        (let [response (-> (request :get url)
+                           (auth-header token)
+                           (query-string {"page" 1 "page-size" 2 "has-article" "true"})
+                           app)
+              body (-> response :body body->map)
+              {:keys [page page-size total-items items]} body]
+          (is (ok? response))
+          (is (= page 1))
+          (is (= page-size 2))
+          (is (= total-items 1))
+          (is (= [cap-ref-id-article] (map :id items))))))))
 
 (deftest test-put-captured-reference
   (let [run-request #(-> (request :put (str "/api/captured-references/" %1))
