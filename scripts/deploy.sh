@@ -23,7 +23,7 @@ function install_nginx() {
 
 function compile() {
     echo -e "\n\n COMPILING... \n\n"
-    lein compile && lein uberjar
+    lein clean && lein compile && lein uberjar
 }
 
 function prepare_release_dir() {
